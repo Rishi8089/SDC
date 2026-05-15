@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import { STATES } from './data/states';
 import { INSTRUMENTS } from './data/instruments';
 import { EXPERT_OPINIONS } from './data/expert';
 import { INSTRUMENT_REFERENCE } from './data/reference';
+import { showToast } from './utils/toast';
+import SourcePanel from './components/SourcePanel';
 
 const PROVIDERS = {
   claude: {
@@ -85,8 +87,48 @@ function App() {
   const [area, setArea] = useState('');
 
   const [result, setResult] = useState(null);
+  const [calcError, setCalcError] = useState(null);
   const [showRates, setShowRates] = useState(false);
   const [showInstrRef, setShowInstrRef] = useState(false);
+
+  // Keyboard shortcut for Enter
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (mode === 'calc') {
+          const tag = document.activeElement && document.activeElement.tagName;
+          if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON') {
+            e.preventDefault();
+            // We use a custom event or a ref to call calculate if it doesn't have stale closures.
+            // But since calculate is a closure on state, it's better to attach it inside an effect that depends on all the form values.
+            // Actually, we can just find the calculate button and click it!
+            const btn = document.getElementById('btn-calculate');
+            if (btn) btn.click();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mode]);
+
+  const showMsg = (msg, fieldId) => {
+    setResult(null);
+    setCalcError(msg);
+    showToast(msg, 'error');
+
+    if (fieldId) {
+      const el = document.getElementById(fieldId);
+      if (el) {
+        const wrap = el.closest('.fg');
+        if (wrap) {
+          wrap.classList.add('field-error');
+          setTimeout(() => wrap.classList.remove('field-error'), 3000);
+        }
+        el.focus();
+      }
+    }
+  };
 
   // AI State
   const [aiState, setAiState] = useState('');
@@ -121,8 +163,9 @@ function App() {
   };
 
   const calculate = () => {
-    if (!selectedState) { alert('Please select a state / UT.'); return; }
-    if (!selectedCat) { alert('Please select an instrument category.'); return; }
+    setCalcError(null);
+    if (!selectedState) { showMsg('Please select a state / UT.', 'state'); return; }
+    if (!selectedCat) { showMsg('Please select an instrument category.', 'instcat'); return; }
     
     const r = STATES[selectedState];
     const gkey = gender;
@@ -191,7 +234,7 @@ function App() {
     // Commercial Agreements
     if (['sha', 'jv', 'franchise', 'service_agmt'].includes(selectedCat)) {
       const deal = val(pval);
-      if (!deal) { alert('Please enter the contract / deal value.'); return; }
+      if (!deal) { showMsg('Please enter the contract / deal value.', 'pval'); return; }
       const rate = 0.1, duty = Math.max(200, deal * (rate / 100));
       lines.push({ n: 'Stamp duty (commercial agreement)', r: '0.1% or ₹200 min', v: duty });
       lines.push({ n: 'Registration fee (if registered)', r: '₹200 fixed', v: 200 });
@@ -209,7 +252,7 @@ function App() {
     };
     if (SEC_RATES[selectedCat] !== undefined) {
       const base = (selectedCat === 'debenture_issue' || selectedCat === 'debenture_transfer') ? val(debval) : (val(shareval) || val(pval));
-      if (!base) { alert('Please enter the transaction / value amount.'); return; }
+      if (!base) { showMsg('Please enter the transaction / value amount.', (selectedCat === 'debenture_issue' || selectedCat === 'debenture_transfer') ? 'debval' : (val(shareval) !== undefined && document.getElementById('shareval')) ? 'shareval' : 'pval'); return; }
       const rate = SEC_RATES[selectedCat];
       const faceV = val(sharefv);
       const taxBase = (faceV > base && selectedCat.startsWith('share_')) ? faceV : base;
@@ -224,7 +267,7 @@ function App() {
     // Negotiable Instruments
     if (['promissory', 'promissory_usance', 'bill_exchange', 'bill_usance'].includes(selectedCat)) {
       const amt = val(pronote);
-      if (!amt) { alert('Please enter the note / bill amount.'); return; }
+      if (!amt) { showMsg('Please enter the note / bill amount.', 'pronote'); return; }
       const usanceMo = val(usance);
       let rate = 0.5, note = 'On demand — Art.49/13 ISA';
       if (selectedCat.includes('usance')) {
@@ -243,7 +286,7 @@ function App() {
       const adv = val(advance);
       const rentIn = val(rent);
       const periodVal = Math.max(1, parseInt(leaseMonths) || 1);
-      if (!rentIn && !adv) { alert('Please enter rent amount or advance/deposit.'); return; }
+      if (!rentIn && !adv) { showMsg('Please enter rent amount or advance/deposit.', 'rent'); return; }
 
       let totalMonths, annualRent;
       if (leasePeriodType === 'years') {
@@ -317,7 +360,7 @@ function App() {
 
     // Conveyance Family
     const pvalVal = val(pval), circleVal = val(circle);
-    if (!pvalVal && !['mortgage', 'partition'].includes(selectedCat)) { alert('Please enter the property / asset value.'); return; }
+    if (!pvalVal && !['mortgage', 'partition'].includes(selectedCat)) { showMsg('Please enter the property / asset value.', 'pval'); return; }
     const propertyVal = Math.max(pvalVal, circleVal);
     if (circleVal > pvalVal) lines.push({ n: 'Circle rate applied (higher)', r: '—', v: circleVal });
 
@@ -359,14 +402,14 @@ function App() {
   const handleFileChange = (e) => {
     const f = e.target.files[0];
     if (f) {
-      if (f.size > 5 * 1024 * 1024) { alert('File too large. Max 5MB.'); return; }
+      if (f.size > 5 * 1024 * 1024) { showToast('File too large. Max 5MB.', 'error'); return; }
       setFile(f);
     }
   };
 
   const analyzeDoc = async () => {
-    if (!file && !aiNotes) { alert('Please upload a document or describe it.'); return; }
-    if (!aiApiKey) { alert('Please enter your API key.'); return; }
+    if (!file && !aiNotes) { showToast('Please upload a document or describe it.', 'warning'); return; }
+    if (!aiApiKey) { showToast('Please enter your API key.', 'warning'); return; }
     setIsAnalyzing(true);
     setAiResult('');
     // Mocking AI response for now as per HTML behavior
@@ -690,7 +733,7 @@ function App() {
                   )}
                 </div>
 
-                <button className="calc-btn" onClick={calculate}>Calculate Stamp Duty →</button>
+                <button id="btn-calculate" className="calc-btn" onClick={calculate} aria-label="Calculate stamp duty">Calculate Stamp Duty →</button>
 
                 <div style={{ marginTop: '12px' }}>
                   <button className={`rates-toggle-btn ${showRates ? 'open' : ''}`} onClick={() => setShowRates(!showRates)}>
@@ -830,7 +873,12 @@ function App() {
                   <span className="state-badge">{selectedState ? STATES[selectedState].name : '—'}</span>
                 </div>
                 <div id="result-body">
-                  {!result ? (
+                  {calcError ? (
+                    <div className="empty-result">
+                      <span className="er-icon">⚠️</span>
+                      {calcError}
+                    </div>
+                  ) : !result ? (
                     <div className="empty-result">
                       <span className="er-icon">📋</span>
                       Select instrument & fill values, then click <strong>Calculate</strong>.
@@ -896,6 +944,10 @@ function App() {
                     <div className="expert-panel-title">Expert Opinion</div>
                     <div className="expert-content" dangerouslySetInnerHTML={{ __html: EXPERT_OPINIONS[selectedCat] }}></div>
                   </div>
+                )}
+
+                {selectedCat && (
+                  <SourcePanel instrumentKey={selectedCat} />
                 )}
               </>
             )}
