@@ -12,6 +12,99 @@ header {
   gap: 12px;
 }
 
+/* Location widget in header */
+.loc-widget {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px 12px;
+  min-width: 140px;
+  max-width: 220px;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+.loc-widget:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.loc-detecting {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--text2);
+  width: 100%;
+}
+
+.loc-spin-sm {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.loc-found {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.loc-pin {
+  font-size: 14px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.loc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.loc-city {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.loc-state {
+  font-size: 10px;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: .01em;
+}
+
+.loc-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  width: 100%;
+}
+
+@media(max-width:600px){
+  .loc-widget {
+    display: none;
+  }
+}
+
 .logo {
   display: flex;
   align-items: center;
@@ -1231,5 +1324,110 @@ footer {
   flex-shrink: 0;
   transition: transform .15s, color .15s;
 }
+
+/* Blur effect for disclaimer overlay */
+.blurred {
+  filter: blur(8px) grayscale(25%);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.45;
+  transition: filter 0.4s ease-out, opacity 0.4s ease-out;
+}
+
+/* ADVANCED ACTION TOOLKIT GRID */
+.action-toolkit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.toolkit-card {
+  background: rgba(26, 35, 64, 0.25);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.toolkit-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: transparent;
+  transition: background 0.3s ease;
+}
+
+.toolkit-card:hover {
+  transform: translateY(-3px);
+  background: rgba(26, 35, 64, 0.45);
+  border-color: var(--border2);
+  box-shadow: var(--shadow-m);
+}
+
+.toolkit-card.active {
+  border-color: var(--gold);
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.toolkit-card.active::before {
+  background: var(--gold);
+}
+
+.tk-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.toolkit-card h3 {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #fff;
+  font-family: 'Playfair Display', serif;
+}
+
+.toolkit-card p {
+  font-size: 11.5px;
+  color: var(--text3);
+  line-height: 1.5;
+}
+
+/* PDF REPORT TRIGGER BUTTON */
+.pdf-report-trigger-btn {
+  width: 100%;
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--gold-light);
+  border: 1.5px solid rgba(201, 168, 76, 0.3);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pdf-report-trigger-btn:hover {
+  background: var(--gold);
+  color: #0d1117;
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.3);
+}
+
+
 
 

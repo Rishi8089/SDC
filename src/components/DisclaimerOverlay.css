@@ -1,0 +1,264 @@
+/* ─── TERMS POPUP ─────────────────────────────────── */
+.tov-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 30, 92, 0.85);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  padding: 16px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tbox {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 0;
+  max-width: 680px;
+  width: 100%;
+  box-shadow: 0 20px 80px rgba(15, 30, 92, 0.4);
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: scaleUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0.9) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.tbox-header {
+  background: linear-gradient(135deg, #0f1e5c 0%, #183078 100%);
+  padding: 24px 28px 18px;
+  text-align: center;
+  flex-shrink: 0;
+  border-bottom: 2px solid #ff9933;
+}
+
+.tname {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+.tname .s {
+  color: #ff9933; /* Indian Saffron */
+}
+
+.tname .d {
+  color: #138808; /* Indian Green */
+}
+
+.ttag {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 5px;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+}
+
+.tbox-seal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.tbox-seal-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.tbox-seal-txt {
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.tbox-body {
+  padding: 22px 28px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.th2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #0f1e5c;
+  text-align: center;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.th2::before,
+.th2::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(24, 48, 120, 0.15);
+}
+
+.tbody {
+  font-size: 13px;
+  color: #3a4a6a;
+  line-height: 1.8;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 48, 120, 0.1);
+  margin-bottom: 16px;
+}
+
+.tbody::-webkit-scrollbar {
+  width: 5px;
+}
+
+.tbody::-webkit-scrollbar-thumb {
+  background: #183078;
+  border-radius: 3px;
+  opacity: 0.3;
+}
+
+.tbody h3 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f1e5c;
+  margin: 14px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tbody h3:first-of-type {
+  margin-top: 0;
+}
+
+.tbody h3::before {
+  content: '▸';
+  color: #ff9933;
+  font-size: 10px;
+}
+
+.tbody p {
+  margin-bottom: 8px;
+}
+
+.tbody ol {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+
+.tbody li {
+  margin-bottom: 5px;
+}
+
+.tcheck-wrap {
+  background: linear-gradient(135deg, rgba(255, 153, 51, 0.06), rgba(24, 48, 120, 0.04));
+  border: 1.5px dashed rgba(255, 153, 51, 0.4);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+
+.tcheck-wrap:hover {
+  background: linear-gradient(135deg, rgba(255, 153, 51, 0.08), rgba(24, 48, 120, 0.06));
+}
+
+.tcheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 12.5px;
+  color: #1a2340;
+  line-height: 1.6;
+}
+
+.tcheck input[type=checkbox] {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: #183078;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.tcheck label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.tbox-footer {
+  padding: 0 28px 22px;
+  flex-shrink: 0;
+}
+
+#tbtn {
+  width: 100%;
+  background: linear-gradient(135deg, #183078, #2a4aa0);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.35;
+  transition: all 0.25s ease;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 12px rgba(24, 48, 120, 0.15);
+}
+
+#tbtn.on {
+  opacity: 1;
+  cursor: pointer;
+}
+
+#tbtn.on:hover {
+  background: linear-gradient(135deg, #2a4aa0, #183078);
+  box-shadow: 0 6px 20px rgba(24, 48, 120, 0.3);
+  transform: translateY(-1.5px);
+}
+
+#tbtn.on:active {
+  transform: translateY(0.5px);
+}
+
+.tbox-meta {
+  font-size: 10.5px;
+  color: #7a8aa8;
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
+.tbox-meta span {
+  color: #c0392b;
+  font-weight: 600;
+}

@@ -6,6 +6,13 @@ import { EXPERT_OPINIONS } from './data/expert';
 import { INSTRUMENT_REFERENCE } from './data/reference';
 import { showToast } from './utils/toast';
 import SourcePanel from './components/SourcePanel';
+import DisclaimerOverlay from './components/DisclaimerOverlay';
+import { autoDetectState } from './utils/location';
+import CrossStateComparison from './components/CrossStateComparison';
+import DosDontsGuide from './components/DosDontsGuide';
+import CircleRatesDatabase from './components/CircleRatesDatabase';
+import DeedDraftPanel from './components/DeedDraftPanel';
+import PdfReportModal from './components/PdfReportModal';
 
 const PROVIDERS = {
   claude: {
@@ -90,6 +97,43 @@ function App() {
   const [calcError, setCalcError] = useState(null);
   const [showRates, setShowRates] = useState(false);
   const [showInstrRef, setShowInstrRef] = useState(false);
+  const [activeSubPage, setActiveSubPage] = useState(null); // 'comparison', 'guide', 'circlerates', 'draft'
+  const [showPdfModal, setShowPdfModal] = useState(false);
+
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('idle'); // 'idle', 'detecting', 'found', 'error'
+  const [detectedCity, setDetectedCity] = useState('');
+  const [detectedStateName, setDetectedStateName] = useState('');
+
+  const triggerLocationDetection = () => {
+    autoDetectState({
+      onDetecting: () => {
+        setLocationStatus('detecting');
+      },
+      onFound: (city, stateName, code) => {
+        setLocationStatus('found');
+        setDetectedCity(city);
+        setDetectedStateName(stateName);
+        if (code) {
+          setSelectedState(code);
+          showToast(`Auto-detected location: ${city || stateName || 'India'}`, 'success');
+        }
+      },
+      onError: () => {
+        setLocationStatus('error');
+      }
+    });
+  };
+
+  const handleAcceptTerms = () => {
+    setTermsAccepted(true);
+    try {
+      localStorage.setItem('esd_accepted', new Date().toISOString());
+    } catch {
+      // Ignore local storage error
+    }
+    setTimeout(triggerLocationDetection, 400);
+  };
 
   // Keyboard shortcut for Enter
   React.useEffect(() => {
@@ -168,9 +212,10 @@ function App() {
     if (!selectedCat) { showMsg('Please select an instrument category.', 'instcat'); return; }
     
     const r = STATES[selectedState];
+    const sk = selectedState;
     const gkey = gender;
     let lines = [];
-    let total = 0;
+    let total;
     const val = (v) => parseFloat(v) || 0;
 
     // Fixed Duty Check
@@ -187,9 +232,23 @@ function App() {
 
     if (FIXED[selectedCat]) {
       const fd = FIXED[selectedCat];
-      lines.push({ n: 'Stamp duty (' + selectedCat.replace(/_/g, ' ') + ')', r: 'Fixed (' + fd.art + ')', v: fd.duty, note: fd.note });
-      if (fd.reg > 0) lines.push({ n: 'Registration fee', r: 'Fixed', v: fd.reg });
-      total = fd.duty + (fd.reg || 0);
+      let duty = fd.duty;
+      let reg = fd.reg;
+      let note = fd.note;
+      
+      if (selectedState === 'KA' && selectedCat === 'will') {
+        duty = 0;
+        reg = 200;
+        note = 'Karnataka Will: NIL stamp duty, ₹200 registration fee.';
+      } else if (selectedState === 'KA' && selectedCat === 'adoption') {
+        duty = 1000;
+        reg = 200;
+        note = 'Karnataka Adoption: ₹1,000 stamp duty, ₹200 registration fee.';
+      }
+      
+      lines.push({ n: 'Stamp duty (' + selectedCat.replace(/_/g, ' ') + ')', r: 'Fixed (' + fd.art + ')', v: duty, note: note });
+      if (reg > 0) lines.push({ n: 'Registration fee', r: 'Fixed', v: reg });
+      total = duty + (reg || 0);
       setResult({ total, lines, baseValue: total, br: 0 });
       return;
     }
@@ -197,7 +256,7 @@ function App() {
     // Partnership / LLP
     if (selectedCat === 'partnership' || selectedCat === 'llp') {
       const cap = val(partcap);
-      let duty = 500, note = '';
+      let duty, note;
       if (partnew === 'dissolution') { duty = 500; note = 'Dissolution deed — ₹500'; }
       else if (partnew === 'amendment') { duty = 200; note = 'Amendment deed — ₹200'; }
       else {
@@ -299,7 +358,7 @@ function App() {
       const totalYears = totalMonths / 12;
       const monthlyRent = annualRent / 12;
 
-      let duty = 0, lrNote = '', regMandatory = false, regFee = 0;
+      let duty, lrNote = '', regMandatory = false, regFee = 0;
       const pctOf = (rate, b) => b * (rate / 100);
 
       const sk = selectedState;
@@ -307,33 +366,74 @@ function App() {
         const totalRentVal = monthlyRent * totalMonths;
         const notionalInt = adv * 0.10 * totalYears;
         const taxBase = totalRentVal + notionalInt;
-        const rate = totalMonths <= 60 ? 0.25 : 0.5;
+        const rate = totalYears <= 5 ? 0.25 : totalYears <= 10 ? 0.5 : 1;
         duty = Math.max(100, pctOf(rate, taxBase));
         lrNote = `MSA Art.36A: ${rate}% of (total rent + 10% notional interest).`;
         regMandatory = true;
-        regFee = Math.max(1000, taxBase * 0.01);
+        regFee = 1000;
         lines.push({ n: 'Total rent', r: '—', v: totalRentVal });
         if (adv > 0) lines.push({ n: 'Notional interest on deposit (10% p.a.)', r: '10%', v: notionalInt });
+      } else if (sk === 'KA') {
+        // ══ OFFICIAL IGR KARNATAKA CIRCULAR (Sep 2025) ══
+        const isResidential = (ptype === 'residential');
+        const base = annualRent + adv;
+        lines.push({ n: 'Average Annual Rent (AAR)', r: '—', v: annualRent, note: totalMonths + ' months' });
+        if (adv > 0) lines.push({ n: 'Advance / Premium / Fine (included in base)', r: '—', v: adv, note: 'AAR + Advance' });
+        lines.push({ n: 'Taxable base (AAR + Advance)', r: '—', v: base });
+
+        const kaLeaseReg = Math.max(200, Math.ceil(base / 1000) * 5);
+        if (totalYears <= 1) {
+          const raw = pctOf(0.5, base);
+          if (isResidential) {
+            duty = Math.min(500, Math.max(100, raw));
+            lrNote = 'IGR KA Item 9(i): Residential ≤1yr — 0.5% of (AAR+Advance), max ₹500. Registration not compulsory.';
+          } else {
+            duty = Math.max(100, raw);
+            lrNote = 'IGR KA Item 9(ii): Commercial/Industrial ≤1yr — 0.5% of (AAR+Advance). NO MAX CAP. Registration not compulsory.';
+          }
+          regMandatory = false;
+          regFee = kaLeaseReg;
+        } else if (totalYears <= 10) {
+          duty = pctOf(1, base);
+          lrNote = 'IGR KA Item 9(iii): >1yr to <10yr — 1% of (AAR+Advance). Registration compulsory.';
+          regMandatory = true;
+          regFee = kaLeaseReg;
+        } else if (totalYears <= 20) {
+          duty = pctOf(2, base);
+          lrNote = 'IGR KA Item 9(iv): >10yr to <20yr — 2% of (AAR+Advance).';
+          regMandatory = true;
+          regFee = kaLeaseReg;
+        } else if (totalYears <= 30) {
+          duty = pctOf(3, base);
+          lrNote = 'IGR KA Item 9(v): >20yr to <30yr — 3% of (AAR+Advance).';
+          regMandatory = true;
+          regFee = kaLeaseReg;
+        } else {
+          const mv = Math.max(base, annualRent * 30);
+          duty = mv * 0.05;
+          lrNote = 'IGR KA Item 9(vi): >30yr/perpetuity — 5% conveyance rate on higher of MV or AAR×30. Reg: 2%.';
+          regMandatory = true;
+          regFee = mv * 0.02;
+        }
       } else if (sk === 'DL') {
         if (totalMonths <= 11) { duty = 50; lrNote = 'Delhi ≤11 months: ₹50'; }
-        else if (totalYears <= 5) { duty = pctOf(2, annualRent + adv); lrNote = 'Delhi 1–5 yrs: 2%'; regMandatory = true; }
-        else { duty = pctOf(3, annualRent + adv); lrNote = 'Delhi >5 yrs: 3%'; regMandatory = true; }
-        regFee = totalMonths > 11 ? 1100 : 0;
-      } else if (sk === 'KA') {
+        else if (totalYears <= 5) { duty = pctOf(2, annualRent + adv); lrNote = 'Delhi 1–5 yrs: 2%'; regMandatory = true; regFee = 1100; }
+        else if (totalYears <= 10) { duty = pctOf(3, annualRent + adv); lrNote = 'Delhi 5–10 yrs: 3%'; regMandatory = true; regFee = 1100; }
+        else { duty = pctOf(4, annualRent + adv); lrNote = 'Delhi >10 yrs: 4%'; regMandatory = true; regFee = 1100; }
+      } else if (sk === 'KA_old_legacy') { // kept for potential backward reference, not normally hit
         if (totalMonths <= 11) { duty = 20; lrNote = 'Karnataka ≤11 months: ₹20'; }
-        else if (totalYears <= 5) { duty = Math.max(500, pctOf(1, annualRent + adv)); lrNote = 'Karnataka 1–5 yrs: 1%'; regMandatory = true; }
-        else { duty = pctOf(2, annualRent + adv); lrNote = 'Karnataka >5 yrs: 2%'; regMandatory = true; }
+        else if (totalYears <= 5) { duty = Math.max(500, pctOf(1, annualRent + adv)); lrNote = 'Karnataka 1–5 yrs: 1%'; }
+        else { duty = pctOf(2, annualRent + adv); lrNote = 'Karnataka >5 yrs: 2%'; }
         regFee = totalMonths > 11 ? Math.min(5000, (annualRent + adv) * 0.01) : 0;
       } else if (sk === 'TN') {
         const base = (monthlyRent * totalMonths) + adv;
         duty = pctOf(1, base);
         lrNote = 'Tamil Nadu: 1% of total rent + deposit.';
-        regMandatory = totalMonths > 11;
-        regFee = regMandatory ? Math.min(20000, base * 0.04) : 0;
+        regMandatory = true;
+        regFee = Math.min(20000, base * 0.04);
       } else if (sk === 'KL') {
-        if (totalMonths <= 11) { duty = 500; lrNote = 'Kerala ≤11 months: ₹500'; regMandatory = true; }
-        else { duty = pctOf(8, annualRent + adv); lrNote = 'Kerala >11 months: 8%'; regMandatory = true; }
-        regFee = totalMonths <= 11 ? 1000 : Math.min(15000, (annualRent + adv) * 0.02);
+        if (totalMonths <= 11) { duty = 500; lrNote = 'Kerala ≤11 months: ₹500'; regMandatory = true; regFee = 1000; }
+        else { duty = pctOf(8, annualRent + adv); lrNote = 'Kerala >11 months: 8%'; regMandatory = true; regFee = Math.min(15000, (annualRent + adv) * 0.02); }
       } else if (sk === 'UP') {
         if (totalMonths <= 11) { duty = 200; lrNote = 'UP ≤11 months: ₹200'; }
         else {
@@ -341,18 +441,46 @@ function App() {
           else if (annualRent <= 600000) duty = totalYears <= 1 ? 1500 : totalYears <= 5 ? 4500 : 7500;
           else duty = totalYears <= 1 ? 2500 : totalYears <= 5 ? 6000 : 10000;
           regMandatory = true;
+          regFee = duty;
         }
-        regFee = regMandatory ? duty : 0;
+      } else if (sk === 'GJ') {
+        const base = annualRent + adv;
+        duty = Math.max(300, pctOf(1, base));
+        lrNote = 'Gujarat: 1% of (annual rent + deposit), min ₹300.';
+        regMandatory = totalMonths > 11;
+        regFee = regMandatory ? Math.min(10000, pctOf(1, base)) : 0;
+      } else if (sk === 'HR') {
+        const base = annualRent + adv;
+        const rate = totalYears <= 5 ? 1.5 : 3;
+        duty = pctOf(rate, base);
+        lrNote = `Haryana: ${rate}% of (annual rent + deposit).`;
+        regMandatory = totalMonths > 11;
+        regFee = regMandatory ? Math.min(50000, pctOf(1, base)) : 0;
+      } else if (sk === 'WB') {
+        if (totalMonths <= 11) { duty = 100; lrNote = 'West Bengal ≤11 months: ₹100'; }
+        else if (totalYears <= 5) { duty = pctOf(2, annualRent + adv); lrNote = 'WB 1–5 yrs: 2%'; regMandatory = true; regFee = Math.min(10000, pctOf(1, annualRent + adv)); }
+        else if (totalYears <= 10) { duty = pctOf(3, annualRent + adv); lrNote = 'WB 5–10 yrs: 3%'; regMandatory = true; }
+        else { duty = pctOf(4, annualRent + adv); lrNote = 'WB >10 yrs: 4%'; regMandatory = true; }
+      } else if (sk === 'RJ') {
+        if (totalMonths <= 11) { duty = 500; lrNote = 'Rajasthan ≤11 months: ₹500'; }
+        else {
+          duty = totalYears <= 5 ? pctOf(2, annualRent + adv) : pctOf(3, annualRent + adv);
+          lrNote = `Rajasthan ${totalYears <= 5 ? '1–5' : '5+'} yrs: ${totalYears <= 5 ? '2%' : '3%'}`;
+          regMandatory = true;
+          regFee = pctOf(1, annualRent + adv);
+        }
       } else {
         const base = annualRent + adv;
         if (totalMonths <= 11) { duty = 200; lrNote = 'Standard: ₹200 fixed'; }
         else if (totalYears <= 5) { duty = pctOf(2, base); lrNote = '1–5 yrs: 2%'; regMandatory = true; }
-        else { duty = pctOf(3, base); lrNote = '5+ yrs: 3%'; regMandatory = true; }
+        else if (totalYears <= 10) { duty = pctOf(3, base); lrNote = '5–10 yrs: 3%'; regMandatory = true; }
+        else if (totalYears <= 20) { duty = pctOf(4, base); lrNote = '10–20 yrs: 4%'; regMandatory = true; }
+        else { duty = pctOf(5, base); lrNote = '20+ yrs: 5%'; regMandatory = true; }
         regFee = regMandatory ? Math.min((r.regCap || Infinity), base * (r.reg / 100)) : 0;
       }
 
       lines.push({ n: 'Stamp duty (Lease)', r: 'Calculated', v: duty, note: lrNote });
-      if (regFee > 0) lines.push({ n: 'Registration fee', r: '—', v: regFee });
+      if (regMandatory && regFee > 0) lines.push({ n: 'Registration fee', r: '—', v: regFee });
       total = duty + regFee;
       setResult({ total, lines, baseValue: annualRent + adv, br: 0 });
       return;
@@ -364,38 +492,119 @@ function App() {
     const propertyVal = Math.max(pvalVal, circleVal);
     if (circleVal > pvalVal) lines.push({ n: 'Circle rate applied (higher)', r: '—', v: circleVal });
 
-    let sd = 0, br = 0;
+    let sd, br;
     if (selectedCat === 'mortgage') {
       const ln = val(loan);
+      if (!ln) { showMsg('Please enter the loan amount.', 'loan'); return; }
+      lines.push({ n: 'Loan amount', r: '—', v: ln });
+
       const mr = r.mortgage || 0.5;
-      sd = ln * (mr / 100);
-      const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
-      lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '40') + ' ISA)', r: pct(mr), v: sd });
-      let rf = ln * (r.reg / 100); if (r.regCap && rf > r.regCap) rf = r.regCap;
-      lines.push({ n: 'Registration fee (Reg. Act 1908)', r: pct(r.reg), v: rf });
+      let rf;
+      if (sk === 'KA') {
+        const baseSD = ln * (mr / 100);
+        const sc = baseSD * 0.12;
+        sd = baseSD + sc;
+        lines.push({ n: 'Stamp duty — Mortgage without possession (KSA Item 10(ii))', r: '0.5% + surcharge', v: Math.round(sd), note: 'IGR KA Official: 0.5% on loan amount + 12% surcharge' });
+        rf = Math.min(25000, Math.ceil(ln / 25000) * 5);
+        lines.push({ n: 'Registration fee (₹5/₹25,000, max ₹25,000)', r: '₹5/₹25k', v: rf, note: 'KSA Item 10(ii)' });
+      } else {
+        sd = ln * (mr / 100);
+        const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
+        lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '40') + ' ISA)', r: pct(mr), v: sd });
+        rf = ln * (r.reg / 100); if (r.regCap && rf > r.regCap) rf = r.regCap;
+        lines.push({ n: 'Registration fee (Reg. Act 1908)', r: pct(r.reg), v: rf, note: r.regCap ? `capped at ${fmt(r.regCap)}` : '' });
+      }
       total = sd + rf;
       setResult({ total, lines, baseValue: ln, br: mr, reg: r.reg, state: r });
     } else if (selectedCat === 'partition') {
       const pv = val(partval), ns = Math.max(2, parseInt(nshares) || 2);
+      if (!pv) { showMsg('Please enter the total property value.', 'partval'); return; }
       const sv1 = pv / ns;
+      lines.push({ n: 'Total property value', r: '—', v: pv, note: `${ns} co-owners` });
+      lines.push({ n: "Each party's share value", r: '—', v: sv1 });
+
       const pr = r.partition || 2;
-      sd = sv1 * (pr / 100);
-      const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
-      lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '45') + ' ISA)', r: pct(pr), v: sd });
-      const rf = sv1 * (r.reg / 100);
-      lines.push({ n: 'Registration fee (Reg. Act 1908)', r: pct(r.reg), v: rf });
+      let rf;
+      if (sk === 'KA') {
+        sd = 5000 * ns;
+        rf = 1000 * ns;
+        lines.push({ n: 'Stamp duty — KSA Partition (Urban BBMP/Corp: ₹5,000/share)', r: '₹5,000/share', v: sd, note: 'KSA Item 11(a)(i). Rural/Municipal: ₹3,000/share; Agri: ₹1,000/share' });
+        lines.push({ n: 'Registration fee (₹1,000/share — BBMP/Corp)', r: '₹1,000/share', v: rf, note: 'Rural: ₹500/share; Agri: ₹200/share' });
+      } else {
+        sd = sv1 * (pr / 100);
+        const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
+        lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '45') + ' ISA)', r: pct(pr), v: sd });
+        const partRegRate = Math.min(r.reg, 1);
+        rf = sv1 * (partRegRate / 100);
+        lines.push({ n: 'Registration fee (partition)', r: pct(partRegRate), v: rf, note: 'Partition reg: 1% (Reg.Act 1908 — not full conveyance rate)' });
+      }
       total = sd + rf;
       setResult({ total, lines, baseValue: sv1, br: pr, reg: r.reg, state: r });
     } else {
-      if (r.useSlab) { sd = slabCalc(propertyVal, r.slabs, gkey); br = (sd / propertyVal) * 100; }
-      else { br = r.base[gkey] || r.base.male; sd = propertyVal * (br / 100); }
-      const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
-      lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '23') + ' ISA)', r: pct(br), v: sd });
-      if (r.surcharge) { const sc = sd * (r.surcharge / 100); lines.push({ n: 'Stamp duty surcharge (' + r.surcharge + '%)', r: r.surcharge + '%', v: sc }); sd += sc; }
-      let rf = propertyVal * (r.reg / 100); if (r.regCap && rf > r.regCap) rf = r.regCap;
-      lines.push({ n: 'Registration fee (Reg. Act 1908)', r: pct(r.reg), v: rf });
-      total = sd + rf;
-      setResult({ total, lines, baseValue: propertyVal, br: br, reg: r.reg, state: r });
+      if (sk === 'KA') {
+        if (selectedCat === 'gift_prop') {
+          const baseSD = propertyVal * 0.05;
+          const surchargeTotal = baseSD * 0.12;
+          sd = baseSD + surchargeTotal;
+          lines.push({ n: 'Stamp duty — Gift (non-family) KSA: 5%', r: '5%', v: baseSD, note: 'IGR KA Item 8(i)' });
+          lines.push({ n: 'Surcharge & Additional Duty (12% of base SD)', r: '12%', v: surchargeTotal });
+          lines.push({ n: '— If donee is a family member —', r: 'Fixed Concession', v: 0, note: 'BBMP/Corp: ₹5,000 | Municipal/Town: ₹3,000 | Others: ₹1,000 (Reg: ₹1,000)' });
+          let rf = propertyVal * 0.02;
+          lines.push({ n: 'Registration fee (non-family)', r: '2%', v: rf, note: 'Non-family gift registration fee' });
+          total = sd + rf;
+          setResult({ total, lines, baseValue: propertyVal, br: 5, reg: 2, state: r });
+          return;
+        } else {
+          const baseSD = propertyVal * 0.05;
+          const surchargeTotal = baseSD * 0.12;
+          sd = baseSD + surchargeTotal;
+          const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
+          lines.push({ n: 'Stamp duty — ' + instTitle + ' KSA Art.20(1)', r: '5%', v: baseSD, note: 'Source: igr.karnataka.gov.in (Sep 2025)' });
+          lines.push({ n: 'Surcharge & Additional Duty (12% of base SD — BBMP/Corp areas)', r: '12%', v: surchargeTotal, note: 'BBMP: 10% + 2% addl. duty' });
+          let rf = propertyVal * 0.02;
+          lines.push({ n: 'Registration fee (Reg. Act 1908)', r: '2%', v: rf });
+          total = sd + rf;
+          setResult({ total, lines, baseValue: propertyVal, br: 5, reg: 2, state: r });
+          return;
+        }
+      } else {
+        if (r.useSlab) { sd = slabCalc(propertyVal, r.slabs, gkey); br = (sd / propertyVal) * 100; }
+        else { br = r.base[gkey] || r.base.male; sd = propertyVal * (br / 100); }
+        
+        const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
+        lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '23') + ' ISA)', r: pct(br), v: sd });
+        
+        if (r.surcharge) {
+          const sc = sd * (r.surcharge / 100);
+          lines.push({ n: 'Stamp duty surcharge (' + r.surcharge + '%)', r: r.surcharge + '%', v: sc });
+          sd += sc;
+        }
+        if (r.transfer && ptype !== 'agricultural' && (selectedCat === 'sale' || selectedCat === 'exchange')) {
+          const td = propertyVal * (r.transfer / 100);
+          lines.push({ n: 'Transfer duty', r: pct(r.transfer), v: td });
+          sd += td;
+        }
+        if (r.extras) {
+          for (const ex of r.extras) {
+            if (ex.noAgri && ptype === 'agricultural') continue;
+            const ev = propertyVal * (ex.r / 100);
+            lines.push({ n: ex.n, r: pct(ex.r), v: ev });
+            sd += ev;
+          }
+        }
+        
+        let rf;
+        if (selectedCat === 'agreement_sale' || selectedCat === 'development') {
+          rf = 200;
+          lines.push({ n: 'Registration fee (nominal)', r: '₹200 fixed', v: 200 });
+        } else {
+          rf = propertyVal * (r.reg / 100);
+          if (r.regCap && rf > r.regCap) rf = r.regCap;
+          lines.push({ n: 'Registration fee (Reg. Act 1908)', r: pct(r.reg), v: rf, note: r.regCap ? `capped at ${fmt(r.regCap)}` : '' });
+        }
+        total = sd + rf;
+        setResult({ total, lines, baseValue: propertyVal, br: br, reg: r.reg, state: r });
+      }
     }
   };
 
@@ -421,9 +630,11 @@ function App() {
 
   return (
     <div className="App">
-      <header>
-        <div className="container">
-          <div className="header-inner">
+      {!termsAccepted && <DisclaimerOverlay onAccept={handleAcceptTerms} />}
+      <div className={!termsAccepted ? 'blurred' : ''}>
+        <header>
+          <div className="container">
+            <div className="header-inner">
             <div className="logo">
               <div className="logo-icon">🏛️</div>
               <div className="logo-text">Stamp<span>Calc</span> India</div>
@@ -434,6 +645,41 @@ function App() {
               <span className="hpill">All 36 States & UTs</span>
               <span className="hpill green">FY 2026–27 Updated</span>
               <span className="hpill red">Not Legal Advice</span>
+            </div>
+            
+            {/* Location widget — right side of header */}
+            <div className="loc-widget" id="loc-widget">
+              {locationStatus === 'detecting' && (
+                <div className="loc-detecting">
+                  <span className="loc-spin-sm"></span>
+                  <span>Detecting location…</span>
+                </div>
+              )}
+              {locationStatus === 'found' && (
+                <div className="loc-found">
+                  <span className="loc-pin">📍</span>
+                  <div className="loc-info">
+                    <div className="loc-city">
+                      {detectedCity || detectedStateName || 'India'}
+                    </div>
+                    {detectedCity && detectedStateName && (
+                      <div className="loc-state">{detectedStateName}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {locationStatus === 'error' && (
+                <div className="loc-error">
+                  <span style={{ fontSize: '13px' }}>📍</span>
+                  <span>Location unavailable</span>
+                </div>
+              )}
+              {locationStatus === 'idle' && (
+                <div className="loc-detecting" style={{ cursor: 'pointer' }} onClick={triggerLocationDetection}>
+                  <span className="loc-pin">📍</span>
+                  <span>Click to auto-detect location</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -452,14 +698,75 @@ function App() {
           </div>
         </div>
 
-        <div className="main-grid">
-          <div className="left-panel">
-            <div className="mode-tabs">
-              <div className={`mode-tab ${mode === 'calc' ? 'active' : ''}`} onClick={() => setMode('calc')}><span className="ti">🧮</span>Calculator</div>
-              <div className={`mode-tab ${mode === 'ai' ? 'active' : ''}`} onClick={() => setMode('ai')}><span className="ti">🤖</span>AI Document Analysis</div>
+        {result && activeSubPage === null && (
+          <div className="action-toolkit-grid no-print">
+            <div className={`toolkit-card ${activeSubPage === 'comparison' ? 'active' : ''}`} onClick={() => {
+              if (!selectedCat) {
+                showToast('Please select an instrument category in the calculator below to compare across states.', 'warning');
+                document.getElementById('btn-calculate')?.scrollIntoView({ behavior: 'smooth' });
+              } else {
+                setActiveSubPage('comparison');
+              }
+            }}>
+              <div className="tk-icon">📊</div>
+              <h3>Cross-State Compare</h3>
+              <p>Dynamically compare stamp duty and registry slabs across all 36 Indian states.</p>
+            </div>
+            
+            <div className={`toolkit-card ${activeSubPage === 'draft' ? 'active' : ''}`} onClick={() => setActiveSubPage('draft')}>
+              <div className="tk-icon">📝</div>
+              <h3>Deed Drafting Suite</h3>
+              <p>Generate draft legal deeds with live Times New Roman preview and Word downloads.</p>
             </div>
 
-            {mode === 'calc' ? (
+            <div className={`toolkit-card ${activeSubPage === 'circlerates' ? 'active' : ''}`} onClick={() => setActiveSubPage('circlerates')}>
+              <div className="tk-icon">🗺️</div>
+              <h3>Circle Rates Database</h3>
+              <p>Access direct state-wise government IGR portal links and valuation guides.</p>
+            </div>
+
+            <div className={`toolkit-card ${activeSubPage === 'guide' ? 'active' : ''}`} onClick={() => setActiveSubPage('guide')}>
+              <div className="tk-icon">⚖️</div>
+              <h3>Legal Compliance</h3>
+              <p>Interactive statutory checklist and Section 35 deficient duty risk advisories.</p>
+            </div>
+          </div>
+        )}
+
+        {activeSubPage === 'comparison' && (
+          <CrossStateComparison 
+            selectedCat={selectedCat} 
+            inputs={{ gender, ptype, pval, circle, loan, mortprop, advance, leasePeriodType, leaseMonths, rent, partval, nshares, poaval, shareval, sharefv, debval, pronote, usance, loanamt, autcap, area, partcap, partnew }} 
+            onClose={() => setActiveSubPage(null)} 
+          />
+        )}
+        {activeSubPage === 'draft' && (
+          <DeedDraftPanel 
+            selectedCat={selectedCat} 
+            inputs={{ gender, ptype, pval, circle, loan, mortprop, advance, leasePeriodType, leaseMonths, rent, partval, nshares, poaval, shareval, sharefv, debval, pronote, usance, loanamt, autcap, area, partcap, partnew }} 
+            onClose={() => setActiveSubPage(null)} 
+          />
+        )}
+        {activeSubPage === 'circlerates' && (
+          <CircleRatesDatabase 
+            onClose={() => setActiveSubPage(null)} 
+          />
+        )}
+        {activeSubPage === 'guide' && (
+          <DosDontsGuide 
+            onClose={() => setActiveSubPage(null)} 
+          />
+        )}
+
+        {activeSubPage === null && (
+          <div className="main-grid">
+            <div className="left-panel">
+              <div className="mode-tabs">
+                <div className={`mode-tab ${mode === 'calc' ? 'active' : ''}`} onClick={() => setMode('calc')}><span className="ti">🧮</span>Calculator</div>
+                <div className={`mode-tab ${mode === 'ai' ? 'active' : ''}`} onClick={() => setMode('ai')}><span className="ti">🤖</span>AI Document Analysis</div>
+              </div>
+
+              {mode === 'calc' ? (
               <div className="card">
                 <div className="card-title">Instrument & Transaction Details</div>
                 <div className="form-grid">
@@ -721,7 +1028,7 @@ function App() {
                         <label>Capital Contribution (₹)</label>
                         <div className="pfx"><span className="pfx-sym">₹</span><input type="number" value={partcap} onChange={(e) => setPartcap(e.target.value)} /></div>
                       </div>
-                      <div className="fg">
+                             <div className="fg">
                         <label>Deed Type</label>
                         <select value={partnew} onChange={(e) => setPartnew(e.target.value)}>
                           <option value="new">New Deed</option>
@@ -893,6 +1200,9 @@ function App() {
                             Effective rate: {((result.total / result.baseValue) * 100).toFixed(2)}% of base value
                           </div>
                         )}
+                        <button className="pdf-report-trigger-btn" onClick={() => setShowPdfModal(true)}>
+                          📄 Generate PDF Audit Report
+                        </button>
                       </div>
                       <div className="blist">
                         {result.lines.map((l, i) => (
@@ -957,6 +1267,7 @@ function App() {
             </div>
           </div>
         </div>
+        )}
       </main>
 
       <footer>
@@ -965,6 +1276,17 @@ function App() {
           <p className="red-text">Not legal advice — consult a qualified professional · Penalty for under-stamping: up to 10× deficit (Sec.35, ISA 1899)</p>
         </div>
       </footer>
+      </div>
+
+      {showPdfModal && (
+        <PdfReportModal 
+          result={result} 
+          selectedState={selectedState} 
+          selectedCat={selectedCat} 
+          inputs={{ gender, ptype, pval, circle, loan, mortprop, advance, leasePeriodType, leaseMonths, rent, partval, nshares, poaval, shareval, sharefv, debval, pronote, usance, loanamt, autcap, area, partcap, partnew }} 
+          onClose={() => setShowPdfModal(false)} 
+        />
+      )}
     </div>
   );
 }
