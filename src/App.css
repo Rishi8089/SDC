@@ -1748,3 +1748,72 @@ footer strong {
   text-align: center;
   padding: 16px;
 }
+
+/* ── COLLAPSIBLE Rates Table & Pill Styles ── */
+.collapsible-rates .table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--rsm);
+  border: 1px solid var(--bdr);
+  background: var(--sfc);
+  margin-top: 4px;
+}
+
+.collapsible-rates table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12.5px;
+}
+
+.collapsible-rates th,
+.collapsible-rates td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--bdr);
+}
+
+.collapsible-rates th {
+  background: var(--sfc2);
+  color: var(--nv);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.collapsible-rates tr {
+  transition: background 0.15s ease;
+}
+
+.collapsible-rates tr:hover {
+  background: rgba(24, 48, 120, 0.02);
+}
+
+.collapsible-rates tr:last-child td {
+  border-bottom: none;
+}
+
+/* Rate breakdown pills */
+.rpill {
+  display: inline-block;
+  padding: 2.5px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(24, 48, 120, 0.07);
+  color: var(--nv);
+  border-radius: 4px;
+  border: 1px solid rgba(24, 48, 120, 0.15);
+  white-space: nowrap;
+}
+
+.rpill.blue {
+  background: rgba(105, 48, 195, 0.07);
+  color: var(--pu);
+  border-color: rgba(105, 48, 195, 0.15);
+}
+
+/* Sub-Registrar / Special Notes */
+.collapsible-rates td[style*="var(--text3)"],
+.collapsible-rates td[style*="var(--tx3)"] {
+  color: var(--tx3) !important;
+}
