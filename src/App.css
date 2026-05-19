@@ -2034,3 +2034,18 @@ footer strong {
     gap: 12px;
   }
 }
+
+/* ── ABOUT US RESPONSIVE FRAMEWORK GRID ── */
+.about-framework-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .about-framework-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}

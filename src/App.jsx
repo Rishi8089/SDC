@@ -1061,7 +1061,7 @@ function App() {
 
               <div className="card">
                 <div className="card-title">Our Technical Framework</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '16px' }}>
+                <div className="about-framework-grid">
                   <div className="vr-item">
                     <div className="vr-num">01</div>
                     <h3 style={{ color: 'var(--nv)', fontWeight: '600', marginBottom: '8px' }}>High-Precision Slab Engines</h3>
@@ -1113,9 +1113,8 @@ function App() {
                     <div>
                       <strong>🏢 Legal-Tech Headquarters:</strong>
                       <p style={{ marginTop: '4px', fontSize: '13px' }}>
-                        Janakshi Layout , Rajrajeshwari nagar 5th stage<br />
-                        Main road, Bangalore,<br />
-                        Karnataka — 560098
+                        Amrit nagar , Shobhawaton ki dhani,<br />
+                        Jodhpur, Rajasthan — 342008
                       </p>
                     </div>
                     
