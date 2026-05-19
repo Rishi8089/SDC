@@ -2,8 +2,8 @@
 
 .draft-grid {
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 20px;
+  grid-template-columns: 420px 1fr;
+  gap: 24px;
   align-items: start;
 }
 
@@ -104,11 +104,11 @@
   background: #ffffff;
   color: #111111;
   border-radius: 8px;
-  box-shadow: var(--shm), 0 0 0 1px rgba(0,0,0,0.15);
-  padding: 40px;
-  max-height: 600px;
-  overflow-y: auto;
-  border: 1px solid #ddd;
+  box-shadow: var(--shl), 0 0 0 1px rgba(0,0,0,0.08);
+  padding: 50px 40px;
+  min-height: 1000px; /* Full A4/Legal page length aspect ratio */
+  border: 1px solid #ccc;
+  box-sizing: border-box;
 }
 
 /* Stamp Paper Placeholder */
@@ -170,8 +170,12 @@
   text-align: justify;
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1150px) {
   .draft-grid {
     grid-template-columns: 1fr;
+  }
+  .legal-paper-canvas {
+    padding: 30px 16px;
+    min-height: auto;
   }
 }

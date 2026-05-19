@@ -7,10 +7,53 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
   const [refId] = useState(() => 'SC-' + Math.floor(100000 + Math.random() * 900000));
   const [auditRef] = useState(() => 'AUDIT-' + Math.floor(10000000 + Math.random() * 90000000));
 
+  const getCertMetaRows = () => {
+    const list = [
+      ['Governing Jurisdiction:', result.state?.name || selectedState],
+      ['Primary Instrument:', selectedCat.replace(/_/g, ' ').toUpperCase()],
+      ['State Regulation:', result.state?.act || 'Indian Stamp Act 1899'],
+      ['Property / Asset Type:', inputs.ptype ? inputs.ptype.toUpperCase() : 'RESIDENTIAL'],
+    ];
+
+    if (inputs.pval) list.push(['Declared Value:', fmt(inputs.pval)]);
+    if (inputs.circle) list.push(['Circle Guideline Rate:', fmt(inputs.circle)]);
+    if (inputs.area) list.push(['Property Area:', `${inputs.area} sq.ft.`]);
+    if (inputs.loanamt || inputs.loan) list.push(['Assessed Loan:', fmt(inputs.loanamt || inputs.loan)]);
+    if (inputs.rent) list.push(['Monthly Rent:', fmt(inputs.rent)]);
+    if (inputs.leaseMonths) list.push(['Lease Tenure:', `${inputs.leaseMonths} Months`]);
+    if (inputs.advance) list.push(['Security Deposit:', fmt(inputs.advance)]);
+    if (inputs.partcap) list.push(['Partnership Capital:', fmt(inputs.partcap)]);
+    if (inputs.shareval) list.push(['Share Market Value:', fmt(inputs.shareval)]);
+    if (inputs.sharefv) list.push(['Share Face Value:', fmt(inputs.sharefv)]);
+    if (inputs.nshares) list.push(['Total Shares Number:', String(inputs.nshares)]);
+    if (inputs.poaval) list.push(['POA Consideration:', fmt(inputs.poaval)]);
+
+    list.push(['Assessed Base Value:', fmt(result.baseValue)]);
+    list.push(['Gender Code Claimed:', inputs.gender ? inputs.gender.toUpperCase() : 'MALE']);
+
+    const rows = [];
+    for (let i = 0; i < list.length; i += 2) {
+      rows.push([list[i], list[i + 1]]);
+    }
+    return rows;
+  };
+
   if (!result) return null;
 
-  const fmt = (num) => '₹' + Math.round(num).toLocaleString('en-IN');
+  const fmt = (num) => {
+    if (num === null || num === undefined) return 'N/A';
+    const clean = typeof num === 'string' ? num.replace(/[^0-9.]/g, '') : num;
+    const val = parseFloat(clean);
+    if (isNaN(val)) return 'N/A';
+    return '₹' + Math.round(val).toLocaleString('en-IN');
+  };
   const date = new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
+
+  const parseVal = (val) => {
+    if (!val) return 0;
+    const clean = String(val).replace(/[^0-9.]/g, '');
+    return parseFloat(clean) || 0;
+  };
 
   const generatePdf = () => {
     const doc = new jsPDF({
@@ -62,6 +105,102 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
       }
     };
 
+    const buildMetaItems = () => {
+      const items = [
+        ['Jurisdiction State:', result.state?.name || selectedState],
+        ['Primary Instrument:', selectedCat.replace(/_/g, ' ').toUpperCase()],
+        ['State Stamp Act:', result.state?.act || 'Indian Stamp Act 1899'],
+        ['Property / Asset Type:', inputs.ptype ? inputs.ptype.toUpperCase() : 'RESIDENTIAL'],
+      ];
+
+      if (inputs.pval) {
+        items.push(['Declared Value:', fmt(inputs.pval)]);
+      }
+      if (inputs.circle) {
+        items.push(['Circle Guideline Rate:', fmt(inputs.circle)]);
+      }
+      if (inputs.area) {
+        items.push(['Property Area:', `${inputs.area} sq.ft.`]);
+      }
+      if (inputs.loanamt || inputs.loan) {
+        items.push(['Assessed Loan:', fmt(inputs.loanamt || inputs.loan)]);
+      }
+      if (inputs.rent) {
+        items.push(['Monthly Rent:', fmt(inputs.rent)]);
+      }
+      if (inputs.leaseMonths) {
+        items.push(['Lease Tenure:', `${inputs.leaseMonths} Months`]);
+      }
+      if (inputs.advance) {
+        items.push(['Security Deposit:', fmt(inputs.advance)]);
+      }
+      if (inputs.partcap) {
+        items.push(['Partnership Capital:', fmt(inputs.partcap)]);
+      }
+      if (inputs.shareval) {
+        items.push(['Share Market Value:', fmt(inputs.shareval)]);
+      }
+      if (inputs.sharefv) {
+        items.push(['Share Face Value:', fmt(inputs.sharefv)]);
+      }
+      if (inputs.nshares) {
+        items.push(['Total Shares Number:', String(inputs.nshares)]);
+      }
+      if (inputs.poaval) {
+        items.push(['POA Consideration:', fmt(inputs.poaval)]);
+      }
+
+      items.push(['Assessed Base Value:', fmt(result.baseValue)]);
+      items.push(['Gender / Exemption:', inputs.gender ? inputs.gender.toUpperCase() : 'MALE']);
+      items.push(['Calculation Date:', date]);
+      
+      if (reportType === 'typeA') {
+        items.push(['Reference ID:', refId]);
+      } else {
+        items.push(['Audit Reference:', auditRef]);
+      }
+
+      if (inputs.mortprop) {
+        items.push(['Property Address:', inputs.mortprop]);
+      }
+
+      return items;
+    };
+
+    const drawMetaGrid = (metaItems) => {
+      const gridItems = metaItems.filter(([key]) => key !== 'Property Address:');
+      
+      gridItems.forEach(([key, val], idx) => {
+        const isLeft = idx % 2 === 0;
+        const colX = isLeft ? margin : pageWidth / 2 + 5;
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.text(key, colX, y);
+        doc.setFont('Helvetica', 'normal');
+        
+        const maxValWidth = (pageWidth / 2) - margin - 48; // generous column space for values
+        const splitVal = doc.splitTextToSize(String(val), maxValWidth);
+        doc.text(splitVal, colX + 44, y);
+        
+        if (!isLeft || idx === gridItems.length - 1) {
+          y += 5.5;
+        }
+      });
+      y += 3;
+
+      const addrItem = metaItems.find(([key]) => key === 'Property Address:');
+      if (addrItem && addrItem[1]) {
+        checkPageBreak(12);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.text('Subject Property Address:', margin, y);
+        doc.setFont('Helvetica', 'normal');
+        const splitAddr = doc.splitTextToSize(String(addrItem[1]), contentWidth - 44);
+        doc.text(splitAddr, margin + 44, y);
+        y += (splitAddr.length * 5) + 3;
+      }
+    };
+
     // First Page Initial Draw
     drawHeaderFooter();
     y = 20;
@@ -99,27 +238,8 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
       doc.setFontSize(9);
       doc.setTextColor(cText[0], cText[1], cText[2]);
 
-      const meta = [
-        ['Jurisdiction State:', result.state?.name || selectedState],
-        ['Primary Instrument:', selectedCat.replace(/_/g, ' ').toUpperCase()],
-        ['Assessed Base Value:', fmt(result.baseValue)],
-        ['Calculation Date:', date],
-        ['Reference ID:', refId],
-        ['Audit Certificate Ref:', auditRef]
-      ];
-
-      meta.forEach(([key, val], idx) => {
-        const isLeft = idx % 2 === 0;
-        const colX = isLeft ? margin : pageWidth / 2 + 5;
-        doc.setFont('Helvetica', 'bold');
-        doc.text(key, colX, y);
-        doc.setFont('Helvetica', 'normal');
-        doc.text(val, colX + 42, y);
-        if (!isLeft || idx === meta.length - 1) {
-          y += 6;
-        }
-      });
-      y += 6;
+      const metaItems = buildMetaItems();
+      drawMetaGrid(metaItems);
 
       // Valuation parameters
       checkPageBreak(40);
@@ -137,10 +257,10 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
       doc.setFontSize(9);
       doc.setTextColor(cText[0], cText[1], cText[2]);
       doc.text('Government Circle Guideline Rate:', margin + 6, y + 8);
-      doc.text(inputs.circle ? fmt(parseFloat(inputs.circle)) : 'Not Specified', margin + 70, y + 8);
+      doc.text(inputs.circle ? fmt(parseVal(inputs.circle)) : 'Not Specified', margin + 70, y + 8);
 
       doc.text('Declared Transaction Value:', margin + 6, y + 16);
-      doc.text(inputs.pval ? fmt(parseFloat(inputs.pval)) : 'Not Specified', margin + 70, y + 16);
+      doc.text(inputs.pval ? fmt(parseVal(inputs.pval)) : 'Not Specified', margin + 70, y + 16);
       y += 30;
 
       // Itemized calculations table
@@ -164,30 +284,34 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
       y += 8;
 
       result.lines.forEach((l, idx) => {
-        checkPageBreak(12);
+        const hasNote = !!l.note;
+        const rowHeight = hasNote ? 14 : 10;
+        checkPageBreak(rowHeight + 2);
         
         doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 254);
-        doc.rect(margin, y, contentWidth, 10, 'F');
+        doc.rect(margin, y, contentWidth, rowHeight, 'F');
 
         doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(9);
+        doc.setFontSize(8.5);
         doc.setTextColor(cText[0], cText[1], cText[2]);
-        doc.text(l.n, margin + 4, y + 6.5);
+        doc.text(l.n, margin + 4, y + 5.5);
         
-        // Add note if any
-        if (l.note) {
+        if (hasNote) {
           doc.setFont('Helvetica', 'oblique');
           doc.setFontSize(7.5);
           doc.setTextColor(110, 120, 150);
-          doc.text(`— ${l.note}`, margin + 45, y + 6.5);
+          
+          const noteWidth = 100;
+          const splitNote = doc.splitTextToSize(`— ${l.note}`, noteWidth);
+          doc.text(splitNote, margin + 4, y + 9.5);
         }
 
         doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(9);
+        doc.setFontSize(8.5);
         doc.setTextColor(cText[0], cText[1], cText[2]);
-        doc.text(l.r, margin + 110, y + 6.5);
-        doc.text(fmt(l.v), pageWidth - margin - 4, y + 6.5, { align: 'right' });
-        y += 10;
+        doc.text(l.r, margin + 110, y + 5.5);
+        doc.text(fmt(l.v), pageWidth - margin - 4, y + 5.5, { align: 'right' });
+        y += rowHeight;
       });
 
       // Total row
@@ -261,27 +385,8 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
       doc.line(margin, y, pageWidth - margin, y);
       y += 6;
 
-      const meta = [
-        ['Jurisdiction State:', result.state?.name || selectedState],
-        ['Primary Instrument:', selectedCat.replace(/_/g, ' ').toUpperCase()],
-        ['State Stamp Act:', result.state?.act || 'Indian Stamp Act 1899'],
-        ['Property / Asset Type:', inputs.ptype ? inputs.ptype.toUpperCase() : 'RESIDENTIAL'],
-        ['Assessed Base Value:', fmt(result.baseValue)],
-        ['Claimed Gender / Exemption:', inputs.gender ? inputs.gender.toUpperCase() : 'MALE']
-      ];
-
-      meta.forEach(([key, val], idx) => {
-        const isLeft = idx % 2 === 0;
-        const colX = isLeft ? margin : pageWidth / 2 + 5;
-        doc.setFont('Helvetica', 'bold');
-        doc.text(key, colX, y);
-        doc.setFont('Helvetica', 'normal');
-        doc.text(val, colX + 42, y);
-        if (!isLeft || idx === meta.length - 1) {
-          y += 6;
-        }
-      });
-      y += 6;
+      const metaItemsB = buildMetaItems();
+      drawMetaGrid(metaItemsB);
 
       // Calculations table header
       checkPageBreak(40);
@@ -303,28 +408,33 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
       y += 8;
 
       result.lines.forEach((l, idx) => {
-        checkPageBreak(12);
+        const hasNote = !!l.note;
+        const rowHeight = hasNote ? 14 : 10;
+        checkPageBreak(rowHeight + 2);
         
         doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 254);
-        doc.rect(margin, y, contentWidth, 10, 'F');
+        doc.rect(margin, y, contentWidth, rowHeight, 'F');
 
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(8.5);
         doc.setTextColor(cText[0], cText[1], cText[2]);
-        doc.text(l.n, margin + 4, y + 6.5);
+        doc.text(l.n, margin + 4, y + 5.5);
         
-        if (l.note) {
+        if (hasNote) {
           doc.setFont('Helvetica', 'oblique');
           doc.setFontSize(7.5);
           doc.setTextColor(110, 120, 150);
-          doc.text(`— ${l.note}`, margin + 45, y + 6.5);
+          
+          const noteWidth = 100;
+          const splitNote = doc.splitTextToSize(`— ${l.note}`, noteWidth);
+          doc.text(splitNote, margin + 4, y + 9.5);
         }
 
         doc.setFont('Helvetica', 'normal');
         doc.setFontSize(8.5);
-        doc.text(l.r, margin + 110, y + 6.5);
-        doc.text(fmt(l.v), pageWidth - margin - 4, y + 6.5, { align: 'right' });
-        y += 10;
+        doc.text(l.r, margin + 110, y + 5.5);
+        doc.text(fmt(l.v), pageWidth - margin - 4, y + 5.5, { align: 'right' });
+        y += rowHeight;
       });
 
       // Total
@@ -438,6 +548,17 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
                   <tr><td>Assessment Base Value:</td><td className="right bold">{fmt(result.baseValue)}</td></tr>
                   {inputs.circle && <tr><td>Government Circle Guideline Rate:</td><td className="right">{fmt(inputs.circle)}</td></tr>}
                   {inputs.pval && <tr><td>Declared Transaction Value:</td><td className="right">{fmt(inputs.pval)}</td></tr>}
+                  {inputs.area && <tr><td>Property Area:</td><td className="right">{inputs.area} sq.ft.</td></tr>}
+                  {(inputs.loanamt || inputs.loan) && <tr><td>Assessed Loan Amount:</td><td className="right">{fmt(inputs.loanamt || inputs.loan)}</td></tr>}
+                  {inputs.rent && <tr><td>Monthly Rent:</td><td className="right">{fmt(inputs.rent)}</td></tr>}
+                  {inputs.leaseMonths && <tr><td>Lease Tenure:</td><td className="right">{inputs.leaseMonths} Months</td></tr>}
+                  {inputs.advance && <tr><td>Security Deposit:</td><td className="right">{fmt(inputs.advance)}</td></tr>}
+                  {inputs.partcap && <tr><td>Partnership Capital:</td><td className="right">{fmt(inputs.partcap)}</td></tr>}
+                  {inputs.shareval && <tr><td>Share Market Value:</td><td className="right">{fmt(inputs.shareval)}</td></tr>}
+                  {inputs.sharefv && <tr><td>Share Face Value:</td><td className="right">{fmt(inputs.sharefv)}</td></tr>}
+                  {inputs.nshares && <tr><td>Total Shares Number:</td><td className="right">{inputs.nshares}</td></tr>}
+                  {inputs.poaval && <tr><td>POA Consideration:</td><td className="right">{fmt(inputs.poaval)}</td></tr>}
+                  {inputs.mortprop && <tr><td>Subject Property Address:</td><td className="right" style={{ fontStyle: 'italic', color: 'var(--tx2)' }}>{inputs.mortprop}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -490,18 +611,29 @@ export default function PdfReportModal({ result, selectedState, selectedCat, inp
 
             <table className="cert-meta-table">
               <tbody>
-                <tr>
-                  <td><strong>Governing Jurisdiction:</strong></td><td>{result.state?.name || selectedState}</td>
-                  <td><strong>Primary Instrument:</strong></td><td>{selectedCat.replace(/_/g, ' ').toUpperCase()}</td>
-                </tr>
-                <tr>
-                  <td><strong>State Regulation:</strong></td><td>{result.state?.act || 'Indian Stamp Act 1899'}</td>
-                  <td><strong>Property / Asset Type:</strong></td><td>{inputs.ptype ? inputs.ptype.toUpperCase() : 'RESIDENTIAL'}</td>
-                </tr>
-                <tr>
-                  <td><strong>Assessed Base Value:</strong></td><td className="bold text-gold">{fmt(result.baseValue)}</td>
-                  <td><strong>Gender Code Claimed:</strong></td><td>{inputs.gender ? inputs.gender.toUpperCase() : 'MALE'}</td>
-                </tr>
+                {getCertMetaRows().map((row, idx) => (
+                  <tr key={idx}>
+                    <td><strong>{row[0][0]}</strong></td>
+                    <td>{row[0][1]}</td>
+                    {row[1] ? (
+                      <>
+                        <td><strong>{row[1][0]}</strong></td>
+                        <td>{row[1][1]}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td></td>
+                        <td></td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+                {inputs.mortprop && (
+                  <tr>
+                    <td><strong>Subject Property Address:</strong></td>
+                    <td colSpan="3" style={{ textAlign: 'left', fontStyle: 'italic', color: 'var(--tx)' }}>{inputs.mortprop}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
 

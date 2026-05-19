@@ -607,36 +607,111 @@ WITNESS 1: ${formData.w1 || '_______________________'}    WITNESS 2: ${formData.
   const draftText = getGeneratedDraft();
 
   const downloadRtf = () => {
-    // Escaping function for Rich Text Format (RTF)
-    function rtfEsc(s) {
+    function rtfEscape(s) {
+      if (!s) return '';
       return s
         .replace(/\\/g, '\\\\')
         .replace(/\{/g, '\\{')
         .replace(/\}/g, '\\}')
-        .replace(/━+/g, '------------------------------------------------')
-        .replace(/[┌┐└┘├┤┬┴┼│─]/g, '|')
-        .split('\n')
-        .join('\\par\n');
+        .replace(/₹/g, 'Rs. ');
     }
 
-    const escaped = rtfEsc(draftText);
     const titleFmt = deedType.toUpperCase() + ' AGREEMENT DRAFT';
+    const rtfLines = [];
+
+    draftText.split('\n').forEach((line) => {
+      const trimmed = line.trim();
+      const escaped = rtfEscape(trimmed);
+      
+      // 1. Empty lines
+      if (!escaped) {
+        rtfLines.push('\\pard\\par\n');
+        return;
+      }
+      
+      // 2. Unicode dividers
+      if (escaped.includes('━') || escaped.includes('═')) {
+        rtfLines.push('\\pard\\qc\\cf1 --------------------------------------------------------------------------------\\par\n');
+        return;
+      }
+      
+      // 3. Document Titles (centered & bold & underlined & bigger font)
+      if (escaped === 'DEED OF SALE OF IMMOVABLE PROPERTY' || escaped === 'RESIDENTIAL / COMMERCIAL LEAVE AND LICENCE AGREEMENT' || escaped === 'DEED OF SIMPLE MORTGAGE' || escaped === 'DEED OF GIFT OF IMMOVABLE PROPERTY' || escaped === 'DEED OF PARTNERSHIP' || escaped === 'LAST WILL AND TESTAMENT' || escaped === 'GENERAL POWER OF ATTORNEY') {
+        rtfLines.push(`\\pard\\qc\\f0\\fs30\\b\\ul\\cf1 ${escaped}\\ul0\\b0\\par\n`);
+        return;
+      }
+
+      // 4. Section titles (centered/left-aligned & bold)
+      if (escaped === 'BY AND BETWEEN:' || escaped === 'SCHEDULE OF THE PROPERTY:' || escaped === 'LOAN & FINANCIAL DETAILS:' || escaped === 'MORTGAGED PROPERTY:' || escaped === 'GIFTED PROPERTY:' || escaped === 'RELATIONSHIP:' || escaped === 'WITNESSES:' || escaped.startsWith('IN WITNESS WHEREOF')) {
+        rtfLines.push(`\\pard\\ql\\f0\\fs22\\b\\cf1 ${escaped}\\b0\\par\n`);
+        return;
+      }
+
+      // 5. Signature/Witness lines (side-by-side using tabs!)
+      if (escaped.includes('______') && (escaped.includes('VENDOR') || escaped.includes('PURCHASER') || escaped.includes('LICENSOR') || escaped.includes('LICENSEE') || escaped.includes('MORTGAGOR') || escaped.includes('MORTGAGEE') || escaped.includes('DONOR') || escaped.includes('DONEE') || escaped.includes('PARTNER') || escaped.includes('TESTATOR'))) {
+        const parts = escaped.split(/\s{3,}/); // split by multiple spaces
+        if (parts.length >= 2) {
+          rtfLines.push(`\\pard\\ql\\tx6000\\f0\\fs22\\b ${parts[0]}\\tab ${parts[1]}\\b0\\par\n`);
+        } else {
+          rtfLines.push(`\\pard\\ql\\f0\\fs22\\b ${escaped}\\b0\\par\n`);
+        }
+        return;
+      }
+
+      if (escaped.startsWith('(Signature') || escaped.startsWith('WITNESS 1:') || escaped.startsWith('WITNESSES:')) {
+        const parts = escaped.split(/\s{3,}/);
+        if (parts.length >= 2) {
+          rtfLines.push(`\\pard\\ql\\tx6000\\f0\\fs18\\i\\cf2 ${parts[0]}\\tab ${parts[1]}\\i0\\cf0\\par\n`);
+        } else {
+          rtfLines.push(`\\pard\\ql\\f0\\fs18\\i\\cf2 ${escaped}\\i0\\cf0\\par\n`);
+        }
+        return;
+      }
+
+      // 6. Numbered Clauses (e.g. 1. CONSIDERATION, 2. PAYMENT)
+      if (/^\d+\.\s+[A-Z\s&]+/.test(escaped)) {
+        const match = escaped.match(/^(\d+\.\s+[A-Z\s&]+)(.*)$/);
+        if (match) {
+          rtfLines.push(`\\pard\\qj\\f0\\fs22\\sa120\\sl320\\slmult1\\b ${match[1]}\\b0 ${match[2]}\\par\n`);
+          return;
+        }
+      }
+
+      // 7. Bold prefixing (e.g. THE VENDOR (SELLER): or THE LICENSOR:)
+      if (escaped.startsWith('THE VENDOR') || escaped.startsWith('THE PURCHASER') || escaped.startsWith('THE LICENSOR') || escaped.startsWith('THE LICENSEE') || escaped.startsWith('THE DONOR') || escaped.startsWith('THE DONEE') || escaped.startsWith('THE MORTGAGOR') || escaped.startsWith('THE MORTGAGEE') || escaped.startsWith('1. FIRST PARTNER') || escaped.startsWith('2. SECOND PARTNER') || escaped.startsWith('Property Type') || escaped.startsWith('Full Address') || escaped.startsWith('Description') || escaped.startsWith('Measurements') || escaped.startsWith('Survey/CTS') || escaped.startsWith('Encumbrances')) {
+        const colonIdx = escaped.indexOf(':');
+        if (colonIdx !== -1) {
+          const prefix = escaped.substring(0, colonIdx + 1);
+          const suffix = escaped.substring(colonIdx + 1);
+          rtfLines.push(`\\pard\\qj\\f0\\fs22\\sa120\\sl320\\slmult1\\b ${prefix}\\b0 ${suffix}\\par\n`);
+          return;
+        }
+      }
+
+      // 8. Recital paragraphs starting with WHEREAS or NOW THIS
+      if (escaped.startsWith('WHEREAS') || escaped.startsWith('NOW THIS')) {
+        rtfLines.push(`\\pard\\qj\\fi720\\f0\\fs22\\sa120\\sl320\\slmult1 ${escaped}\\par\n`);
+        return;
+      }
+
+      // 9. Default paragraph
+      rtfLines.push(`\\pard\\qj\\f0\\fs22\\sa120\\sl320\\slmult1 ${escaped}\\par\n`);
+    });
+
+    const bodyContent = rtfLines.join('');
 
     const rtfContent = 
       '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033\n' +
       '{\\fonttbl{\\f0\\froman\\fcharset0 Times New Roman;}{\\f1\\fswiss\\fcharset0 Arial;}}\n' +
-      '{\\colortbl;\\red24\\green48\\blue120;\\red255\\green153\\blue51;\\red19\\green136\\blue8;\\red192\\green57\\blue43;}\n' +
+      '{\\colortbl;\\red24\\green48\\blue120;\\red110\\green120\\blue150;\\red19\\green136\\blue8;\\red192\\green57\\blue43;}\n' +
       `{\\info{\\title ${titleFmt}}{\\author EveryStampDuty.com}{\\company EveryStampDuty.com}}\n` +
       '\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440\n' +
       '\\widowctrl\\hyphauto\n' +
       '{\\header\\pard\\qc\\f1\\fs18\\cf1 EveryStampDuty.com | Premium Draft Legal Document | Not a legal execution\\par}\n' +
-      `\\pard\\qc\\f0\\fs32\\b\\cf1 ${titleFmt}\\b0\\fs24\\par\n` +
       '\\pard\\qc\\f1\\fs16\\i Generated via EveryStampDuty.com | Interactive Legal Drafting Suite\\i0\\par\n' +
       '\\pard\\qc\\f1\\fs16\\cf4 DRAFT FOR ADVOCATE REVIEW ONLY\\cf0\\par\n' +
       '\\pard\\par\n' +
-      '{\\pard\\f0\\fs22\\sa120\\sl360\\slmult1\n' +
-      escaped +
-      '\\par}\n' +
+      bodyContent +
       '\\pard\\par\n' +
       '{\\pard\\qc\\f1\\fs16\\cf4\\b IMPORTANT LEGAL DISCLAIMER:\\b0\\cf0 This draft has been generated for guidance and reference purposes only. It is strongly recommended to get this document finalized by a qualified advocate/solicitor before executing it on stamp paper.\\par}\n' +
       '}';
@@ -691,10 +766,11 @@ WITNESS 1: ${formData.w1 || '_______________________'}    WITNESS 2: ${formData.
                   padding: '8px 12px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--bdr)',
+                  border: deedType === t.id ? '1px solid var(--nv)' : '1px solid var(--bdr)',
                   cursor: 'pointer',
-                  background: deedType === t.id ? 'var(--nv)' : 'rgba(255,255,255,0.05)',
-                  color: '#fff',
+                  background: deedType === t.id ? 'var(--nv)' : 'var(--sfc2)',
+                  color: deedType === t.id ? '#fff' : 'var(--tx2)',
+                  fontWeight: deedType === t.id ? '600' : '500',
                   transition: 'all 0.2s'
                 }}
                 onClick={() => setDeedType(t.id)}
@@ -760,66 +836,70 @@ WITNESS 1: ${formData.w1 || '_______________________'}    WITNESS 2: ${formData.
             </div>
 
             {/* SECTION 3: SECOND PARTY */}
-            <div className="form-section">
-              <h3 style={{ fontSize: '12px', color: 'var(--sf)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>3. {labels.p2}</h3>
-              <div className="fg" style={{ marginBottom: '8px' }}>
-                <label>Full Name</label>
-                <input type="text" value={formData.p2} onChange={e => handleInputChange('p2', e.target.value)} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                <div className="fg">
-                  <label>Father's / Husband's Name</label>
-                  <input type="text" value={formData.p2father} placeholder="s/o or w/o..." onChange={e => handleInputChange('p2father', e.target.value)} />
+            {deedType !== 'will' && (
+              <div className="form-section">
+                <h3 style={{ fontSize: '12px', color: 'var(--sf)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>3. {labels.p2}</h3>
+                <div className="fg" style={{ marginBottom: '8px' }}>
+                  <label>Full Name</label>
+                  <input type="text" value={formData.p2} onChange={e => handleInputChange('p2', e.target.value)} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                  <div className="fg">
+                    <label>Father's / Husband's Name</label>
+                    <input type="text" value={formData.p2father} placeholder="s/o or w/o..." onChange={e => handleInputChange('p2father', e.target.value)} />
+                  </div>
+                  <div className="fg">
+                    <label>Age (Years)</label>
+                    <input type="number" value={formData.p2age} onChange={e => handleInputChange('p2age', e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                  <div className="fg">
+                    <label>ID proof / Aadhaar / PAN</label>
+                    <input type="text" value={formData.p2id} placeholder="e.g. Aadhaar/PAN..." onChange={e => handleInputChange('p2id', e.target.value)} />
+                  </div>
+                  <div className="fg">
+                    <label>Estimated Stamp Duty Paid</label>
+                    <input type="text" value={formData.totalDuty} onChange={e => handleInputChange('totalDuty', e.target.value)} />
+                  </div>
                 </div>
                 <div className="fg">
-                  <label>Age (Years)</label>
-                  <input type="number" value={formData.p2age} onChange={e => handleInputChange('p2age', e.target.value)} />
+                  <label>Permanent Residential Address</label>
+                  <textarea rows="2" value={formData.p2addr} onChange={e => handleInputChange('p2addr', e.target.value)} />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                <div className="fg">
-                  <label>ID proof / Aadhaar / PAN</label>
-                  <input type="text" value={formData.p2id} placeholder="e.g. Aadhaar/PAN..." onChange={e => handleInputChange('p2id', e.target.value)} />
-                </div>
-                <div className="fg">
-                  <label>Estimated Stamp Duty Paid</label>
-                  <input type="text" value={formData.totalDuty} onChange={e => handleInputChange('totalDuty', e.target.value)} />
-                </div>
-              </div>
-              <div className="fg">
-                <label>Permanent Residential Address</label>
-                <textarea rows="2" value={formData.p2addr} onChange={e => handleInputChange('p2addr', e.target.value)} />
-              </div>
-            </div>
+            )}
 
             {/* SECTION 4: PROPERTY DETAILS */}
-            <div className="form-section">
-              <h3 style={{ fontSize: '12px', color: 'var(--sf)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>4. Property Description</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                <div className="fg">
-                  <label>Property Description / Unit No.</label>
-                  <input type="text" value={formData.prop} placeholder="e.g. Flat No. 202..." onChange={e => handleInputChange('prop', e.target.value)} />
+            {deedType !== 'partnership' && deedType !== 'will' && deedType !== 'poa' && (
+              <div className="form-section">
+                <h3 style={{ fontSize: '12px', color: 'var(--sf)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>4. Property Description</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                  <div className="fg">
+                    <label>Property Description / Unit No.</label>
+                    <input type="text" value={formData.prop} placeholder="e.g. Flat No. 202..." onChange={e => handleInputChange('prop', e.target.value)} />
+                  </div>
+                  <div className="fg">
+                    <label>Super Builtup Area</label>
+                    <input type="text" value={formData.area} placeholder="e.g. 1,200 sq.ft." onChange={e => handleInputChange('area', e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                  <div className="fg">
+                    <label>Survey / CTS / Site No.</label>
+                    <input type="text" value={formData.survey} placeholder="e.g. Survey No. 45/2B" onChange={e => handleInputChange('survey', e.target.value)} />
+                  </div>
+                  <div className="fg">
+                    <label>Parking Spaces</label>
+                    <input type="text" value={formData.parking} placeholder="e.g. 1 Car Parking..." onChange={e => handleInputChange('parking', e.target.value)} />
+                  </div>
                 </div>
                 <div className="fg">
-                  <label>Super Builtup Area</label>
-                  <input type="text" value={formData.area} placeholder="e.g. 1,200 sq.ft." onChange={e => handleInputChange('area', e.target.value)} />
+                  <label>Full Property Address</label>
+                  <textarea rows="2" value={formData.propAddr} placeholder="Exact physical address of property..." onChange={e => handleInputChange('propAddr', e.target.value)} />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                <div className="fg">
-                  <label>Survey / CTS / Site No.</label>
-                  <input type="text" value={formData.survey} placeholder="e.g. Survey No. 45/2B" onChange={e => handleInputChange('survey', e.target.value)} />
-                </div>
-                <div className="fg">
-                  <label>Parking Spaces</label>
-                  <input type="text" value={formData.parking} placeholder="e.g. 1 Car Parking..." onChange={e => handleInputChange('parking', e.target.value)} />
-                </div>
-              </div>
-              <div className="fg">
-                <label>Full Property Address</label>
-                <textarea rows="2" value={formData.propAddr} placeholder="Exact physical address of property..." onChange={e => handleInputChange('propAddr', e.target.value)} />
-              </div>
-            </div>
+            )}
 
             {/* SECTION 5: CATEGORY SPECIFIC FIELDS */}
             {deedType === 'rental' && (
@@ -1077,8 +1157,96 @@ WITNESS 1: ${formData.w1 || '_______________________'}    WITNESS 2: ${formData.
                 </div>
               </div>
             </div>
-            <div className="legal-paper-body font-times">
-              <pre className="legal-pre">{draftText}</pre>
+            <div className="legal-paper-body font-times" style={{ textAlign: 'justify', lineHeight: '1.8', fontSize: '14.5px', color: '#111', fontFamily: '"Times New Roman", Times, Georgia, serif' }}>
+              {draftText.split('\n').map((line, idx) => {
+                const trimmed = line.trim();
+                
+                // 1. Empty lines
+                if (!trimmed) {
+                  return <div key={idx} style={{ height: '14px' }}></div>;
+                }
+                
+                // 2. Unicode dividers
+                if (trimmed.includes('━') || trimmed.includes('═')) {
+                  return <hr key={idx} style={{ border: 'none', borderTop: '2px solid #222', margin: '14px 0' }} />;
+                }
+                
+                // 3. Document Titles (centered & bold)
+                if (idx === 0 || trimmed === 'DEED OF SALE OF IMMOVABLE PROPERTY' || trimmed === 'RESIDENTIAL / COMMERCIAL LEAVE AND LICENCE AGREEMENT' || trimmed === 'DEED OF SIMPLE MORTGAGE' || trimmed === 'DEED OF GIFT OF IMMOVABLE PROPERTY' || trimmed === 'DEED OF PARTNERSHIP' || trimmed === 'LAST WILL AND TESTAMENT' || trimmed === 'GENERAL POWER OF ATTORNEY') {
+                  return (
+                    <h2 key={idx} style={{ textAlign: 'center', fontSize: '18px', fontWeight: 'bold', margin: '20px 0 10px', textDecoration: 'underline', color: '#000', letterSpacing: '0.05em' }}>
+                      {trimmed}
+                    </h2>
+                  );
+                }
+
+                // 4. Section titles (centered & bold, e.g. BY AND BETWEEN, SCHEDULE OF THE PROPERTY, IN WITNESS WHEREOF)
+                if (trimmed === 'BY AND BETWEEN:' || trimmed === 'SCHEDULE OF THE PROPERTY:' || trimmed === 'LOAN & FINANCIAL DETAILS:' || trimmed === 'MORTGAGED PROPERTY:' || trimmed === 'GIFTED PROPERTY:' || trimmed === 'RELATIONSHIP:' || trimmed === 'WITNESSES:' || trimmed === 'IN WITNESS WHEREOF, the parties sign this deed on the day first mentioned above.' || trimmed === 'IN WITNESS WHEREOF, the parties sign this deed on the day, month and year first above written.' || trimmed === 'IN WITNESS WHEREOF, the partners hereto have signed this partnership deed.' || trimmed === 'IN WITNESS WHEREOF, I sign this Will on the date first mentioned above.') {
+                  return (
+                    <h3 key={idx} style={{ fontSize: '14.5px', fontWeight: 'bold', margin: '18px 0 8px', color: '#000', textTransform: 'uppercase' }}>
+                      {trimmed}
+                    </h3>
+                  );
+                }
+
+                // 5. Signature/Witness lines (side-by-side flex layout)
+                if (trimmed.includes('______') && (trimmed.includes('VENDOR') || trimmed.includes('PURCHASER') || trimmed.includes('LICENSOR') || trimmed.includes('LICENSEE') || trimmed.includes('MORTGAGOR') || trimmed.includes('MORTGAGEE') || trimmed.includes('DONOR') || trimmed.includes('DONEE') || trimmed.includes('PARTNER') || trimmed.includes('TESTATOR'))) {
+                  const parts = trimmed.split(/\s{3,}/); // split by multiple spaces
+                  return (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', margin: '40px 0 10px', fontWeight: 'bold' }}>
+                      {parts.map((p, i) => (
+                        <div key={i} style={{ width: '45%', textAlign: i === 0 ? 'left' : 'right' }}>{p}</div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                if (trimmed.startsWith('(Signature') || trimmed.startsWith('WITNESS 1:') || trimmed.startsWith('WITNESSES:')) {
+                  const parts = trimmed.split(/\s{3,}/);
+                  return (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0 16px', fontSize: '12px', color: '#555', fontStyle: 'italic' }}>
+                      {parts.map((p, i) => (
+                        <div key={i} style={{ width: '45%', textAlign: i === 0 ? 'left' : 'right' }}>{p}</div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                // 6. Numbered Clauses (e.g. 1. CONSIDERATION, 2. PAYMENT)
+                if (/^\d+\.\s+[A-Z\s&]+/.test(trimmed)) {
+                  const match = trimmed.match(/^(\d+\.\s+[A-Z\s&]+)(.*)$/);
+                  if (match) {
+                    return (
+                      <p key={idx} style={{ margin: '12px 0', textIndent: '0' }}>
+                        <strong style={{ color: '#000' }}>{match[1]}</strong>
+                        {match[2]}
+                      </p>
+                    );
+                  }
+                }
+
+                // 7. Bold prefixing (e.g. THE VENDOR (SELLER): or THE LICENSOR:)
+                if (trimmed.startsWith('THE VENDOR') || trimmed.startsWith('THE PURCHASER') || trimmed.startsWith('THE LICENSOR') || trimmed.startsWith('THE LICENSEE') || trimmed.startsWith('THE DONOR') || trimmed.startsWith('THE DONEE') || trimmed.startsWith('THE MORTGAGOR') || trimmed.startsWith('THE MORTGAGEE') || trimmed.startsWith('1. FIRST PARTNER') || trimmed.startsWith('2. SECOND PARTNER') || trimmed.startsWith('Property Type') || trimmed.startsWith('Full Address') || trimmed.startsWith('Description') || trimmed.startsWith('Measurements') || trimmed.startsWith('Survey/CTS') || trimmed.startsWith('Encumbrances')) {
+                  const colonIdx = trimmed.indexOf(':');
+                  if (colonIdx !== -1) {
+                    const prefix = trimmed.substring(0, colonIdx + 1);
+                    const suffix = trimmed.substring(colonIdx + 1);
+                    return (
+                      <p key={idx} style={{ margin: '8px 0', paddingLeft: '14px', textIndent: '-14px' }}>
+                        <strong style={{ color: '#000' }}>{prefix}</strong>
+                        {suffix}
+                      </p>
+                    );
+                  }
+                }
+
+                // 8. Default paragraph
+                return (
+                  <p key={idx} style={{ margin: '10px 0', textIndent: trimmed.startsWith('WHEREAS') || trimmed.startsWith('NOW THIS') ? '24px' : '0' }}>
+                    {trimmed}
+                  </p>
+                );
+              })}
             </div>
           </div>
         </div>
