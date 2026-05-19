@@ -383,7 +383,7 @@ export const STATES = {
     surcharge: null,
     transfer: null,
     extras: [],
-    notes: "Slight female concession.",
+    notes: "Bihar: Male 6.3% + 2% reg; Female 5.7% + 2% reg. Lease: ≤11mo=1% of (AAR+deposit) or ₹500 (whichever is LESS), with ₹1,000 fixed registration fee. 11mo–5yr=6% of average annual rent. >5yr=8% of average annual rent. Fixed ₹1,000 registration fee. Industrial properties are 100% exempt from stamp duty.",
     concession: "Female: 5.7% vs 6.3%(male)",
     acts: [
       { l: "Bihar DRIG Portal", u: "https://bhumijankari.bihar.gov.in/" },

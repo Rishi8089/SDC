@@ -267,6 +267,24 @@ export const runCalculation = (selectedState, selectedCat, inputs) => {
         regMandatory = true;
         regFee = pctOf(1, annualRent + adv);
       }
+    } else if (sk === 'BR') {
+      const base = annualRent + adv;
+      if (totalMonths <= 11) {
+        duty = Math.min(500, pctOf(1, base));
+        lrNote = 'Bihar ≤11mo: 1% of (AAR+deposit) or max ₹500. Fixed ₹1,000 reg.';
+        regMandatory = true;
+        regFee = 1000;
+      } else if (totalYears <= 5) {
+        duty = pctOf(6, annualRent);
+        lrNote = 'Bihar 11mo–5yr: 6% of Average Annual Rent. Fixed ₹1,000 reg.';
+        regMandatory = true;
+        regFee = 1000;
+      } else {
+        duty = pctOf(8, annualRent);
+        lrNote = 'Bihar >5yr: 8% of Average Annual Rent. Fixed ₹1,000 reg.';
+        regMandatory = true;
+        regFee = 1000;
+      }
     } else {
       const base = annualRent + adv;
       if (totalMonths <= 11) { duty = 200; lrNote = 'Standard: ₹200 fixed'; }

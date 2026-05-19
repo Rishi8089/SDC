@@ -1,29 +1,52 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg: #0d1117;
-  --surface: #161b22;
-  --surface2: #1c2330;
-  --border: rgba(255, 255, 255, 0.08);
-  --border2: rgba(255, 255, 255, 0.15);
-  --gold: #c9a84c;
-  --gold-light: #e8c872;
-  --gold-dim: rgba(201, 168, 76, 0.15);
-  --gold-dim2: rgba(201, 168, 76, 0.08);
-  --text: #e6edf3;
-  --text2: #8b949e;
-  --text3: #6e7681;
-  --green: #3fb950;
-  --green-dim: rgba(63, 185, 80, 0.12);
-  --blue: #58a6ff;
-  --blue-dim: rgba(88, 166, 255, 0.1);
-  --purple: #bc8cff;
-  --purple-dim: rgba(188, 140, 255, 0.1);
-  --red: #f85149;
-  --red-dim: rgba(248, 81, 73, 0.1);
-  --orange: #f0883e;
-  --orange-dim: rgba(240, 136, 62, 0.1);
-  --radius: 12px;
+  /* ── Legacy Premium Light-Tech Theme ── */
+  --bg: #f2f5fc;
+  --sfc: #fff;
+  --sfc2: #eef2fb;
+  --bdr: rgba(24,48,120,.10);
+  --bdr2: rgba(24,48,120,.18);
+  --nv: #183078;
+  --sf: #FF9933;
+  --gi: #138808;
+  --tx: #1a2340;
+  --tx2: #3a4a6a;
+  --tx3: #7a8aa8;
+  --gdim: rgba(19,136,8,.10);
+  --bdim: rgba(24,48,120,.07);
+  --pu: #6930c3;
+  --pudim: rgba(105,48,195,.09);
+  --rd: #c0392b;
+  --rddim: rgba(192,57,43,.09);
+  --r: 13px;
+  --rsm: 8px;
+  --sh: 0 2px 16px rgba(24,48,120,.08);
+  --shm: 0 4px 28px rgba(24,48,120,.13);
+
+  /* React UI Compatibility mappings */
+  --surface: #fff;
+  --surface2: #eef2fb;
+  --border: rgba(24,48,120,.10);
+  --border2: rgba(24,48,120,.18);
+  --gold: #FF9933;
+  --gold-light: #FF9933;
+  --gold-dim: rgba(255, 153, 51, 0.1);
+  --gold-dim2: rgba(255, 153, 51, 0.05);
+  --text: #1a2340;
+  --text2: #3a4a6a;
+  --text3: #7a8aa8;
+  --green: #138808;
+  --green-dim: rgba(19,136,8,.10);
+  --blue: #183078;
+  --blue-dim: rgba(24,48,120,.07);
+  --purple: #6930c3;
+  --purple-dim: rgba(105,48,195,.09);
+  --red: #c0392b;
+  --red-dim: rgba(192,57,43,.09);
+  --orange: #FF9933;
+  --orange-dim: rgba(255, 153, 51, 0.1);
+  --radius: 13px;
   --radius-sm: 8px;
 }
 
@@ -34,28 +57,49 @@
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: linear-gradient(145deg, #eef2fc 0%, #f5f7ff 40%, #fdfaf5 70%, #f0f4ee 100%);
+  background-attachment: fixed;
+  color: var(--tx);
   font-family: 'DM Sans', sans-serif;
   font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
+  position: relative;
 }
 
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: radial-gradient(ellipse 80% 50% at 20% 10%, rgba(201, 168, 76, 0.05) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(88, 166, 255, 0.04) 0%, transparent 50%);
+  background:
+    radial-gradient(ellipse 80% 60% at 0% 0%,   rgba(24,48,120,.07) 0%,transparent 55%),
+    radial-gradient(ellipse 70% 50% at 100% 0%,  rgba(201,145,10,.06) 0%,transparent 50%),
+    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(24,48,120,.05) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 100%,rgba(19,100,8,.04) 0%,transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
 
+/* Geometric Grid Overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(24,48,120,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(24,48,120,.025) 1px,transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%,black 20%,transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%,black 20%,transparent 75%);
+}
+
 .container {
-  max-width: 1140px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 22px;
   position: relative;
   z-index: 1;
 }
@@ -73,10 +117,66 @@ button, input, select, textarea {
   font-family: inherit;
 }
 
+/* ── PROFESSIONAL BACKGROUND WATERMARKS ── */
+.pro-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bg-icon {
+  position: absolute;
+  color: rgba(24,48,120,.055);
+  fill: none;
+}
+
+.bg-icon-tl {
+  width: 200px;
+  height: 200px;
+  top: -20px;
+  left: -20px;
+  transform: rotate(-15deg);
+}
+
+.bg-icon-tr {
+  width: 180px;
+  height: 180px;
+  top: -10px;
+  right: -10px;
+  transform: rotate(10deg);
+}
+
+.bg-icon-bl {
+  width: 190px;
+  height: 220px;
+  bottom: -30px;
+  left: -15px;
+  transform: rotate(8deg);
+}
+
+.bg-icon-br {
+  width: 200px;
+  height: 200px;
+  bottom: -20px;
+  right: -20px;
+  transform: rotate(-8deg);
+}
+
+.bg-icon-center {
+  width: min(520px, 70vw);
+  height: min(520px, 70vw);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(24,48,120,.028);
+}
+
 /* ── TOAST SYSTEM ─────────────────────────────────────────── */
 .toast-container {
   position: fixed;
-  bottom: 28px;
+  bottom: 22px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -92,19 +192,19 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 18px;
-  border-radius: 10px;
+  padding: 10px 17px;
+  border-radius: var(--rsm);
   font-size: 13px;
   font-weight: 500;
   font-family: 'DM Sans', sans-serif;
   white-space: nowrap;
-  max-width: 420px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  max-width: 370px;
+  box-shadow: var(--shm);
   cursor: pointer;
   opacity: 0;
   transform: translateY(12px);
-  transition: none;
-  border: 1px solid transparent;
+  transition: opacity .22s, transform .22s;
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .toast.toast-visible {
@@ -115,10 +215,10 @@ button, input, select, textarea {
   animation: toast-out 0.22s ease-in forwards;
 }
 
-.toast-error   { background: #1e0f0e; border-color: rgba(248,81,73,0.35); color: #f85149; }
-.toast-success { background: #0c1f10; border-color: rgba(63,185,80,0.35);  color: #3fb950; }
-.toast-warning { background: #1e1609; border-color: rgba(240,136,62,0.35); color: #f0883e; }
-.toast-info    { background: #0e1620; border-color: rgba(88,166,255,0.35); color: #58a6ff; }
+.toast-error   { background: var(--nv); border-color: rgba(192,57,43,0.3); color: #ff9985; }
+.toast-success { background: var(--nv); border-color: rgba(19,136,8,0.3);  color: #6ee87a; }
+.toast-warning { background: var(--nv); border-color: rgba(255,153,51,0.3); color: #ffca85; }
+.toast-info    { background: var(--nv); border-color: rgba(24,48,120,0.3); color: #a5c3ff; }
 
 .toast-icon {
   font-size: 15px;
@@ -132,23 +232,22 @@ button, input, select, textarea {
 }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0);    }
+  from { opacity: 0; transform: translateY(12px) translateX(-50%); }
+  to   { opacity: 1; transform: translateY(0) translateX(-50%);    }
 }
 
 @keyframes toast-out {
-  from { opacity: 1; transform: translateY(0);    }
-  to   { opacity: 0; transform: translateY(8px);  }
+  from { opacity: 1; transform: translateY(0) translateX(-50%);    }
+  to   { opacity: 0; transform: translateY(8px) translateX(-50%);  }
 }
 
 /* ── FIELD VALIDATION ─────────────────────────────────────── */
 .field-error {
-  border-color: var(--red) !important;
-  box-shadow: 0 0 0 3px var(--red-dim) !important;
+  border-color: var(--rd) !important;
+  box-shadow: 0 0 0 3px var(--rddim) !important;
 }
 
 .field-valid {
-  border-color: var(--green) !important;
-  box-shadow: 0 0 0 3px var(--green-dim) !important;
+  border-color: var(--gi) !important;
+  box-shadow: 0 0 0 3px var(--gdim) !important;
 }
-

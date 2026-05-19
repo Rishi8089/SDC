@@ -1,3 +1,5 @@
+/* ── Cross State Comparison - Light Premium Theme ── */
+
 .subpage-container {
   animation: fadeIn 0.4s ease-out;
   padding: 10px 0;
@@ -8,10 +10,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  background: rgba(26, 35, 64, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px border var(--bdr);
+  background: linear-gradient(135deg, var(--sfc) 0%, var(--sfc2) 100%);
+  border: 1.5px solid var(--bdr);
   padding: 16px 24px;
   border-radius: var(--r);
   box-shadow: var(--sh);
@@ -30,36 +30,37 @@
 .sh-title h1 {
   font-family: 'Playfair Display', serif;
   font-size: 24px;
-  color: var(--sfc);
+  color: var(--nv);
   font-weight: 600;
   margin-bottom: 4px;
 }
 
 .sh-title p {
   font-size: 13px;
-  color: var(--tx3);
+  color: var(--tx2);
 }
 
 .subpage-close {
   background: rgba(255, 153, 51, 0.1);
   color: var(--sf);
-  border: 1px solid rgba(255, 153, 51, 0.3);
+  border: 1.5px solid rgba(255, 153, 51, 0.35);
   padding: 8px 16px;
   border-radius: var(--rsm);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.22s ease;
 }
 
 .subpage-close:hover {
   background: var(--sf);
   color: #fff;
-  box-shadow: 0 0 12px rgba(255, 153, 51, 0.4);
+  box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
 }
 
 .matrix-card {
-  background: rgba(26, 35, 64, 0.35) !important;
-  border: 1px solid var(--bdr) !important;
+  background: var(--sfc) !important;
+  border: 1.5px solid var(--bdr) !important;
+  box-shadow: var(--sh) !important;
 }
 
 .matrix-meta-grid {
@@ -70,8 +71,8 @@
 }
 
 .mm-item {
-  background: rgba(10, 15, 30, 0.4);
-  border: 1px solid var(--bdr);
+  background: var(--sfc2);
+  border: 1.5px solid var(--bdr);
   border-radius: var(--r);
   padding: 16px;
   display: flex;
@@ -79,11 +80,12 @@
   gap: 6px;
   position: relative;
   overflow: hidden;
-  transition: transform 0.3s ease;
+  transition: transform 0.22s ease, border-color 0.22s ease;
 }
 
 .mm-item:hover {
   transform: translateY(-2px);
+  border-color: var(--bdr2);
 }
 
 .mm-lbl {
@@ -96,7 +98,7 @@
 .mm-val {
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--nv);
   display: flex;
   flex-direction: column;
 }
@@ -109,17 +111,17 @@
 }
 
 /* Glow Borders */
-.green-glow { border-color: rgba(19, 136, 8, 0.4); }
+.green-glow { border-color: rgba(19, 136, 8, 0.3); }
 .green-glow::before {
   content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--gi);
 }
 
-.red-glow { border-color: rgba(192, 57, 43, 0.4); }
+.red-glow { border-color: rgba(192, 57, 43, 0.3); }
 .red-glow::before {
   content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--rd);
 }
 
-.purple-glow { border-color: rgba(105, 48, 195, 0.4); }
+.purple-glow { border-color: rgba(105, 48, 195, 0.3); }
 .purple-glow::before {
   content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--pu);
 }
@@ -127,7 +129,9 @@
 .comparison-table-wrap {
   margin-top: 12px;
   border-radius: var(--rsm);
+  border: 1.5px solid var(--bdr);
   overflow: hidden;
+  box-shadow: var(--sh);
 }
 
 .comparison-table {
@@ -135,6 +139,7 @@
   border-collapse: collapse;
   text-align: left;
   font-size: 14px;
+  background: var(--sfc);
 }
 
 .comparison-table th, .comparison-table td {
@@ -143,8 +148,8 @@
 }
 
 .comparison-table th {
-  background: rgba(15, 23, 42, 0.6);
-  color: #fff;
+  background: var(--sfc2);
+  color: var(--nv);
   font-weight: 600;
   font-size: 13px;
   text-transform: uppercase;
@@ -154,11 +159,12 @@
 .comparison-table th.sortable {
   cursor: pointer;
   user-select: none;
+  position: relative;
 }
 
 .comparison-table th.sortable:hover {
-  background: rgba(15, 23, 42, 0.85);
-  color: var(--sf);
+  background: rgba(24, 48, 120, 0.08);
+  color: var(--nv);
 }
 
 .comparison-table tr {
@@ -166,19 +172,19 @@
 }
 
 .comparison-table tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(24, 48, 120, 0.02);
 }
 
 /* Specialized row highlights */
 .min-row {
-  background: rgba(19, 136, 8, 0.06) !important;
+  background: rgba(19, 136, 8, 0.05) !important;
 }
 .min-row:hover {
   background: rgba(19, 136, 8, 0.09) !important;
 }
 
 .max-row {
-  background: rgba(192, 57, 43, 0.06) !important;
+  background: rgba(192, 57, 43, 0.05) !important;
 }
 .max-row:hover {
   background: rgba(192, 57, 43, 0.09) !important;
@@ -196,30 +202,31 @@
 }
 
 .badge-green {
-  background: rgba(19, 136, 8, 0.18);
-  color: #2ecc71;
-  border: 1px solid rgba(19, 136, 8, 0.3);
+  background: var(--gdim);
+  color: var(--gi);
+  border: 1px solid rgba(19, 136, 8, 0.25);
 }
 
 .badge-red {
-  background: rgba(192, 57, 43, 0.18);
-  color: #e74c3c;
-  border: 1px solid rgba(192, 57, 43, 0.3);
+  background: var(--rddim);
+  color: var(--rd);
+  border: 1px solid rgba(192, 57, 43, 0.25);
 }
 
 .st-name-td {
   font-weight: 600;
-  color: #fff;
+  color: var(--tx);
 }
 
 .total-td {
   color: var(--sf);
   font-size: 15px;
+  font-weight: 600;
 }
 
 .notes-td {
   font-size: 12px;
-  color: var(--tx3);
+  color: var(--tx2);
   max-width: 320px;
 }
 

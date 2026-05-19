@@ -13,6 +13,7 @@ import DosDontsGuide from './components/DosDontsGuide';
 import CircleRatesDatabase from './components/CircleRatesDatabase';
 import DeedDraftPanel from './components/DeedDraftPanel';
 import PdfReportModal from './components/PdfReportModal';
+import { runCalculation } from './utils/calcEngine';
 
 const PROVIDERS = {
   claude: {
@@ -194,417 +195,67 @@ function App() {
     return s + '%';
   };
 
-  const slabCalc = (val, slabs, genderKey) => {
-    let stamp = 0, prev = 0;
-    const isFem = genderKey === 'female' || genderKey === 'joint_f';
-    for (const s of slabs) {
-      const band = Math.min(val, s.upto) - prev;
-      if (band > 0) stamp += band * ((isFem ? s.female : s.male) / 100);
-      prev = s.upto;
-      if (val <= s.upto) break;
-    }
-    return stamp;
-  };
-
   const calculate = () => {
     setCalcError(null);
     if (!selectedState) { showMsg('Please select a state / UT.', 'state'); return; }
     if (!selectedCat) { showMsg('Please select an instrument category.', 'instcat'); return; }
     
-    const r = STATES[selectedState];
-    const sk = selectedState;
-    const gkey = gender;
-    let lines = [];
-    let total;
     const val = (v) => parseFloat(v) || 0;
-
-    // Fixed Duty Check
-    const FIXED = {
-      affidavit: { duty: 50, reg: 0, art: 'Art.4 ISA 1899', note: 'Fixed nominal duty. No mandatory registration.' },
-      notarial_act: { duty: 20, reg: 0, art: 'Art.43 ISA 1899', note: '₹20 per notarial act. Notaries Act 1952.' },
-      loa_shares: { duty: 1, reg: 0, art: 'Art.37 ISA 1899', note: 'Letter of Allotment — ₹1 fixed.' },
-      receipt: { duty: 1, reg: 0, art: 'Art.53 ISA 1899', note: 'Not on cheques or e-payments.' },
-      adoption: { duty: 100, reg: 200, art: 'Art.3 ISA 1899', note: 'Registration mandatory under Hindu Adoptions Act.' },
-      aoa: { duty: 200, reg: 0, art: 'AoA — fixed', note: 'Filed with MoA at ROC.' },
-      will: { duty: 200, reg: 200, art: 'Art.62 ISA 1899', note: 'Codicil: ₹500. Registration optional but highly advised.' },
-      divorce_deed: { duty: 100, reg: 100, art: 'Nominal', note: 'Court decree fees are separate.' },
-    };
-
-    if (FIXED[selectedCat]) {
-      const fd = FIXED[selectedCat];
-      let duty = fd.duty;
-      let reg = fd.reg;
-      let note = fd.note;
-      
-      if (selectedState === 'KA' && selectedCat === 'will') {
-        duty = 0;
-        reg = 200;
-        note = 'Karnataka Will: NIL stamp duty, ₹200 registration fee.';
-      } else if (selectedState === 'KA' && selectedCat === 'adoption') {
-        duty = 1000;
-        reg = 200;
-        note = 'Karnataka Adoption: ₹1,000 stamp duty, ₹200 registration fee.';
+    
+    // Check validation of specific category inputs
+    if (['partnership', 'llp'].includes(selectedCat)) {
+      // capital validation
+    } else if (['sha', 'jv', 'franchise', 'service_agmt'].includes(selectedCat)) {
+      if (!val(pval)) { showMsg('Please enter the contract / deal value.', 'pval'); return; }
+    } else if (['share_transfer_unlisted', 'share_transfer_listed', 'debenture_issue', 'debenture_transfer', 'repo', 'futures', 'options_exchange', 'options_otc', 'other_derivatives', 'mf_units', 'aif_units', 'warrant_shares'].includes(selectedCat)) {
+      const isDeb = selectedCat.startsWith('debenture');
+      const baseVal = isDeb ? val(debval) : (val(shareval) || val(pval));
+      if (!baseVal) {
+        showMsg('Please enter the transaction / value amount.', isDeb ? 'debval' : 'pval');
+        return;
       }
-      
-      lines.push({ n: 'Stamp duty (' + selectedCat.replace(/_/g, ' ') + ')', r: 'Fixed (' + fd.art + ')', v: duty, note: note });
-      if (reg > 0) lines.push({ n: 'Registration fee', r: 'Fixed', v: reg });
-      total = duty + (reg || 0);
-      setResult({ total, lines, baseValue: total, br: 0 });
-      return;
-    }
-
-    // Partnership / LLP
-    if (selectedCat === 'partnership' || selectedCat === 'llp') {
-      const cap = val(partcap);
-      let duty, note;
-      if (partnew === 'dissolution') { duty = 500; note = 'Dissolution deed — ₹500'; }
-      else if (partnew === 'amendment') { duty = 200; note = 'Amendment deed — ₹200'; }
-      else {
-        if (!cap) { duty = 500; note = 'Min ₹500 (enter capital for accurate rate)'; }
-        else if (cap <= 100000) { duty = 500; note = 'Capital ≤₹1L → ₹500 (Art.46 ISA)'; }
-        else if (cap <= 500000) { duty = 1000; note = 'Capital ₹1–5L → ₹1,000'; }
-        else if (cap <= 1000000) { duty = 2000; note = 'Capital ₹5–10L → ₹2,000'; }
-        else if (cap <= 5000000) { duty = 3000; note = 'Capital ₹10–50L → ₹3,000'; }
-        else { duty = 5000; note = 'Capital >₹50L → ₹5,000'; }
-        if (selectedState === 'MH') { duty = 1000; note = 'Maharashtra: ₹1,000 (new deed)'; }
-        if (selectedState === 'DL') { duty = 500; note = 'Delhi: ₹500 fixed'; }
-        if (selectedState === 'KA') { duty = 500 + Math.min(Math.floor((cap - 100000) / 100000) * 200, 4500); note = 'Karnataka: ₹500 + ₹200/₹1L additional capital'; }
-      }
-      lines.push({ n: (selectedCat === 'llp' ? 'LLP Agreement' : 'Partnership Deed') + ' — stamp duty', r: 'Fixed/Slab', v: duty, note: note });
-      lines.push({ n: 'Registration fee (Registrar of Firms)', r: 'Fixed', v: 200 });
-      total = duty + 200;
-      setResult({ total, lines, baseValue: cap || 0, br: 0 });
-      return;
-    }
-
-    // MOA
-    if (selectedCat === 'moa') {
-      const ac = val(autcap);
-      let duty = 200;
-      if (ac > 0) duty = 200 + Math.floor(ac / 500000) * 1000;
-      duty = Math.min(duty, 50000000);
-      lines.push({ n: 'MoA stamp duty', r: 'Slab', v: duty, note: '₹200 + ₹1,000/₹5L authorised capital' });
-      lines.push({ n: 'ROC filing fees (approx)', r: '—', v: 1000, note: 'Actual fees per Companies (Registration Offices) Rules' });
-      total = duty + 1000;
-      setResult({ total, lines, baseValue: ac, br: 0 });
-      return;
-    }
-
-    // Commercial Agreements
-    if (['sha', 'jv', 'franchise', 'service_agmt'].includes(selectedCat)) {
-      const deal = val(pval);
-      if (!deal) { showMsg('Please enter the contract / deal value.', 'pval'); return; }
-      const rate = 0.1, duty = Math.max(200, deal * (rate / 100));
-      lines.push({ n: 'Stamp duty (commercial agreement)', r: '0.1% or ₹200 min', v: duty });
-      lines.push({ n: 'Registration fee (if registered)', r: '₹200 fixed', v: 200 });
-      total = duty + 200;
-      setResult({ total, lines, baseValue: deal, br: rate });
-      return;
-    }
-
-    // Securities
-    const SEC_RATES = {
-      share_transfer_unlisted: 0.015, share_transfer_listed: 0.015,
-      debenture_issue: 0.005, debenture_transfer: 0.0001,
-      repo: 0.00001, futures: 0.002, options_exchange: 0.003, options_otc: 0.003,
-      other_derivatives: 0.0001, mf_units: 0.005, aif_units: 0.015, warrant_shares: 0.015,
-    };
-    if (SEC_RATES[selectedCat] !== undefined) {
-      const base = (selectedCat === 'debenture_issue' || selectedCat === 'debenture_transfer') ? val(debval) : (val(shareval) || val(pval));
-      if (!base) { showMsg('Please enter the transaction / value amount.', (selectedCat === 'debenture_issue' || selectedCat === 'debenture_transfer') ? 'debval' : (val(shareval) !== undefined && document.getElementById('shareval')) ? 'shareval' : 'pval'); return; }
-      const rate = SEC_RATES[selectedCat];
-      const faceV = val(sharefv);
-      const taxBase = (faceV > base && selectedCat.startsWith('share_')) ? faceV : base;
-      const taxDuty = taxBase * (rate / 100);
-      if (faceV > base && selectedCat.startsWith('share_')) lines.push({ n: 'Face value applied (higher than consideration)', r: '—', v: faceV, note: 'FMV rule under Finance Act 2019' });
-      lines.push({ n: 'Stamp duty — ' + selectedCat.replace(/_/g, ' '), r: pct(rate) + ' (Finance Act 2019)', v: taxDuty, note: 'Collected by: ' + (selectedCat.includes('listed') || selectedCat === 'futures' || selectedCat === 'options_exchange' ? 'Stock Exchange' : 'Depository / Clearing Corp / State') });
-      total = taxDuty;
-      setResult({ total, lines, baseValue: taxBase, br: rate });
-      return;
-    }
-
-    // Negotiable Instruments
-    if (['promissory', 'promissory_usance', 'bill_exchange', 'bill_usance'].includes(selectedCat)) {
-      const amt = val(pronote);
-      if (!amt) { showMsg('Please enter the note / bill amount.', 'pronote'); return; }
-      const usanceMo = val(usance);
-      let rate = 0.5, note = 'On demand — Art.49/13 ISA';
-      if (selectedCat.includes('usance')) {
-        rate = usanceMo <= 3 ? 0.25 : 0.5;
-        note = 'Usance ' + usanceMo + ' months — ' + (usanceMo <= 3 ? '0.25%' : '0.5%');
-      }
-      const duty = amt * (rate / 100);
-      lines.push({ n: (selectedCat.includes('bill') ? 'Bill of Exchange' : 'Promissory Note') + ' — stamp duty', r: pct(rate), v: duty, note: note });
-      total = duty;
-      setResult({ total, lines, baseValue: amt, br: rate });
-      return;
-    }
-
-    // Lease logic
-    if (selectedCat === 'lease') {
-      const adv = val(advance);
-      const rentIn = val(rent);
-      const periodVal = Math.max(1, parseInt(leaseMonths) || 1);
-      if (!rentIn && !adv) { showMsg('Please enter rent amount or advance/deposit.', 'rent'); return; }
-
-      let totalMonths, annualRent;
-      if (leasePeriodType === 'years') {
-        totalMonths = periodVal * 12;
-        annualRent = rentIn;
-      } else {
-        totalMonths = periodVal;
-        annualRent = rentIn * 12;
-      }
-      const totalYears = totalMonths / 12;
-      const monthlyRent = annualRent / 12;
-
-      let duty, lrNote = '', regMandatory = false, regFee = 0;
-      const pctOf = (rate, b) => b * (rate / 100);
-
-      const sk = selectedState;
-      if (sk === 'MH') {
-        const totalRentVal = monthlyRent * totalMonths;
-        const notionalInt = adv * 0.10 * totalYears;
-        const taxBase = totalRentVal + notionalInt;
-        const rate = totalYears <= 5 ? 0.25 : totalYears <= 10 ? 0.5 : 1;
-        duty = Math.max(100, pctOf(rate, taxBase));
-        lrNote = `MSA Art.36A: ${rate}% of (total rent + 10% notional interest).`;
-        regMandatory = true;
-        regFee = 1000;
-        lines.push({ n: 'Total rent', r: '—', v: totalRentVal });
-        if (adv > 0) lines.push({ n: 'Notional interest on deposit (10% p.a.)', r: '10%', v: notionalInt });
-      } else if (sk === 'KA') {
-        // ══ OFFICIAL IGR KARNATAKA CIRCULAR (Sep 2025) ══
-        const isResidential = (ptype === 'residential');
-        const base = annualRent + adv;
-        lines.push({ n: 'Average Annual Rent (AAR)', r: '—', v: annualRent, note: totalMonths + ' months' });
-        if (adv > 0) lines.push({ n: 'Advance / Premium / Fine (included in base)', r: '—', v: adv, note: 'AAR + Advance' });
-        lines.push({ n: 'Taxable base (AAR + Advance)', r: '—', v: base });
-
-        const kaLeaseReg = Math.max(200, Math.ceil(base / 1000) * 5);
-        if (totalYears <= 1) {
-          const raw = pctOf(0.5, base);
-          if (isResidential) {
-            duty = Math.min(500, Math.max(100, raw));
-            lrNote = 'IGR KA Item 9(i): Residential ≤1yr — 0.5% of (AAR+Advance), max ₹500. Registration not compulsory.';
-          } else {
-            duty = Math.max(100, raw);
-            lrNote = 'IGR KA Item 9(ii): Commercial/Industrial ≤1yr — 0.5% of (AAR+Advance). NO MAX CAP. Registration not compulsory.';
-          }
-          regMandatory = false;
-          regFee = kaLeaseReg;
-        } else if (totalYears <= 10) {
-          duty = pctOf(1, base);
-          lrNote = 'IGR KA Item 9(iii): >1yr to <10yr — 1% of (AAR+Advance). Registration compulsory.';
-          regMandatory = true;
-          regFee = kaLeaseReg;
-        } else if (totalYears <= 20) {
-          duty = pctOf(2, base);
-          lrNote = 'IGR KA Item 9(iv): >10yr to <20yr — 2% of (AAR+Advance).';
-          regMandatory = true;
-          regFee = kaLeaseReg;
-        } else if (totalYears <= 30) {
-          duty = pctOf(3, base);
-          lrNote = 'IGR KA Item 9(v): >20yr to <30yr — 3% of (AAR+Advance).';
-          regMandatory = true;
-          regFee = kaLeaseReg;
-        } else {
-          const mv = Math.max(base, annualRent * 30);
-          duty = mv * 0.05;
-          lrNote = 'IGR KA Item 9(vi): >30yr/perpetuity — 5% conveyance rate on higher of MV or AAR×30. Reg: 2%.';
-          regMandatory = true;
-          regFee = mv * 0.02;
-        }
-      } else if (sk === 'DL') {
-        if (totalMonths <= 11) { duty = 50; lrNote = 'Delhi ≤11 months: ₹50'; }
-        else if (totalYears <= 5) { duty = pctOf(2, annualRent + adv); lrNote = 'Delhi 1–5 yrs: 2%'; regMandatory = true; regFee = 1100; }
-        else if (totalYears <= 10) { duty = pctOf(3, annualRent + adv); lrNote = 'Delhi 5–10 yrs: 3%'; regMandatory = true; regFee = 1100; }
-        else { duty = pctOf(4, annualRent + adv); lrNote = 'Delhi >10 yrs: 4%'; regMandatory = true; regFee = 1100; }
-      } else if (sk === 'KA_old_legacy') { // kept for potential backward reference, not normally hit
-        if (totalMonths <= 11) { duty = 20; lrNote = 'Karnataka ≤11 months: ₹20'; }
-        else if (totalYears <= 5) { duty = Math.max(500, pctOf(1, annualRent + adv)); lrNote = 'Karnataka 1–5 yrs: 1%'; }
-        else { duty = pctOf(2, annualRent + adv); lrNote = 'Karnataka >5 yrs: 2%'; }
-        regFee = totalMonths > 11 ? Math.min(5000, (annualRent + adv) * 0.01) : 0;
-      } else if (sk === 'TN') {
-        const base = (monthlyRent * totalMonths) + adv;
-        duty = pctOf(1, base);
-        lrNote = 'Tamil Nadu: 1% of total rent + deposit.';
-        regMandatory = true;
-        regFee = Math.min(20000, base * 0.04);
-      } else if (sk === 'KL') {
-        if (totalMonths <= 11) { duty = 500; lrNote = 'Kerala ≤11 months: ₹500'; regMandatory = true; regFee = 1000; }
-        else { duty = pctOf(8, annualRent + adv); lrNote = 'Kerala >11 months: 8%'; regMandatory = true; regFee = Math.min(15000, (annualRent + adv) * 0.02); }
-      } else if (sk === 'UP') {
-        if (totalMonths <= 11) { duty = 200; lrNote = 'UP ≤11 months: ₹200'; }
-        else {
-          if (annualRent <= 200000) duty = totalYears <= 1 ? 500 : totalYears <= 5 ? 1500 : 2000;
-          else if (annualRent <= 600000) duty = totalYears <= 1 ? 1500 : totalYears <= 5 ? 4500 : 7500;
-          else duty = totalYears <= 1 ? 2500 : totalYears <= 5 ? 6000 : 10000;
-          regMandatory = true;
-          regFee = duty;
-        }
-      } else if (sk === 'GJ') {
-        const base = annualRent + adv;
-        duty = Math.max(300, pctOf(1, base));
-        lrNote = 'Gujarat: 1% of (annual rent + deposit), min ₹300.';
-        regMandatory = totalMonths > 11;
-        regFee = regMandatory ? Math.min(10000, pctOf(1, base)) : 0;
-      } else if (sk === 'HR') {
-        const base = annualRent + adv;
-        const rate = totalYears <= 5 ? 1.5 : 3;
-        duty = pctOf(rate, base);
-        lrNote = `Haryana: ${rate}% of (annual rent + deposit).`;
-        regMandatory = totalMonths > 11;
-        regFee = regMandatory ? Math.min(50000, pctOf(1, base)) : 0;
-      } else if (sk === 'WB') {
-        if (totalMonths <= 11) { duty = 100; lrNote = 'West Bengal ≤11 months: ₹100'; }
-        else if (totalYears <= 5) { duty = pctOf(2, annualRent + adv); lrNote = 'WB 1–5 yrs: 2%'; regMandatory = true; regFee = Math.min(10000, pctOf(1, annualRent + adv)); }
-        else if (totalYears <= 10) { duty = pctOf(3, annualRent + adv); lrNote = 'WB 5–10 yrs: 3%'; regMandatory = true; }
-        else { duty = pctOf(4, annualRent + adv); lrNote = 'WB >10 yrs: 4%'; regMandatory = true; }
-      } else if (sk === 'RJ') {
-        if (totalMonths <= 11) { duty = 500; lrNote = 'Rajasthan ≤11 months: ₹500'; }
-        else {
-          duty = totalYears <= 5 ? pctOf(2, annualRent + adv) : pctOf(3, annualRent + adv);
-          lrNote = `Rajasthan ${totalYears <= 5 ? '1–5' : '5+'} yrs: ${totalYears <= 5 ? '2%' : '3%'}`;
-          regMandatory = true;
-          regFee = pctOf(1, annualRent + adv);
-        }
-      } else {
-        const base = annualRent + adv;
-        if (totalMonths <= 11) { duty = 200; lrNote = 'Standard: ₹200 fixed'; }
-        else if (totalYears <= 5) { duty = pctOf(2, base); lrNote = '1–5 yrs: 2%'; regMandatory = true; }
-        else if (totalYears <= 10) { duty = pctOf(3, base); lrNote = '5–10 yrs: 3%'; regMandatory = true; }
-        else if (totalYears <= 20) { duty = pctOf(4, base); lrNote = '10–20 yrs: 4%'; regMandatory = true; }
-        else { duty = pctOf(5, base); lrNote = '20+ yrs: 5%'; regMandatory = true; }
-        regFee = regMandatory ? Math.min((r.regCap || Infinity), base * (r.reg / 100)) : 0;
-      }
-
-      lines.push({ n: 'Stamp duty (Lease)', r: 'Calculated', v: duty, note: lrNote });
-      if (regMandatory && regFee > 0) lines.push({ n: 'Registration fee', r: '—', v: regFee });
-      total = duty + regFee;
-      setResult({ total, lines, baseValue: annualRent + adv, br: 0 });
-      return;
-    }
-
-    // Conveyance Family
-    const pvalVal = val(pval), circleVal = val(circle);
-    if (!pvalVal && !['mortgage', 'partition'].includes(selectedCat)) { showMsg('Please enter the property / asset value.', 'pval'); return; }
-    const propertyVal = Math.max(pvalVal, circleVal);
-    if (circleVal > pvalVal) lines.push({ n: 'Circle rate applied (higher)', r: '—', v: circleVal });
-
-    let sd, br;
-    if (selectedCat === 'mortgage') {
-      const ln = val(loan);
-      if (!ln) { showMsg('Please enter the loan amount.', 'loan'); return; }
-      lines.push({ n: 'Loan amount', r: '—', v: ln });
-
-      const mr = r.mortgage || 0.5;
-      let rf;
-      if (sk === 'KA') {
-        const baseSD = ln * (mr / 100);
-        const sc = baseSD * 0.12;
-        sd = baseSD + sc;
-        lines.push({ n: 'Stamp duty — Mortgage without possession (KSA Item 10(ii))', r: '0.5% + surcharge', v: Math.round(sd), note: 'IGR KA Official: 0.5% on loan amount + 12% surcharge' });
-        rf = Math.min(25000, Math.ceil(ln / 25000) * 5);
-        lines.push({ n: 'Registration fee (₹5/₹25,000, max ₹25,000)', r: '₹5/₹25k', v: rf, note: 'KSA Item 10(ii)' });
-      } else {
-        sd = ln * (mr / 100);
-        const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
-        lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '40') + ' ISA)', r: pct(mr), v: sd });
-        rf = ln * (r.reg / 100); if (r.regCap && rf > r.regCap) rf = r.regCap;
-        lines.push({ n: 'Registration fee (Reg. Act 1908)', r: pct(r.reg), v: rf, note: r.regCap ? `capped at ${fmt(r.regCap)}` : '' });
-      }
-      total = sd + rf;
-      setResult({ total, lines, baseValue: ln, br: mr, reg: r.reg, state: r });
+    } else if (['promissory', 'promissory_usance', 'bill_exchange', 'bill_usance'].includes(selectedCat)) {
+      if (!val(pronote)) { showMsg('Please enter the note / bill amount.', 'pronote'); return; }
+    } else if (selectedCat === 'lease') {
+      if (!val(rent) && !val(advance)) { showMsg('Please enter rent amount or advance/deposit.', 'rent'); return; }
+    } else if (selectedCat === 'mortgage') {
+      if (!val(loan)) { showMsg('Please enter the loan amount.', 'loan'); return; }
     } else if (selectedCat === 'partition') {
-      const pv = val(partval), ns = Math.max(2, parseInt(nshares) || 2);
-      if (!pv) { showMsg('Please enter the total property value.', 'partval'); return; }
-      const sv1 = pv / ns;
-      lines.push({ n: 'Total property value', r: '—', v: pv, note: `${ns} co-owners` });
-      lines.push({ n: "Each party's share value", r: '—', v: sv1 });
-
-      const pr = r.partition || 2;
-      let rf;
-      if (sk === 'KA') {
-        sd = 5000 * ns;
-        rf = 1000 * ns;
-        lines.push({ n: 'Stamp duty — KSA Partition (Urban BBMP/Corp: ₹5,000/share)', r: '₹5,000/share', v: sd, note: 'KSA Item 11(a)(i). Rural/Municipal: ₹3,000/share; Agri: ₹1,000/share' });
-        lines.push({ n: 'Registration fee (₹1,000/share — BBMP/Corp)', r: '₹1,000/share', v: rf, note: 'Rural: ₹500/share; Agri: ₹200/share' });
-      } else {
-        sd = sv1 * (pr / 100);
-        const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
-        lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '45') + ' ISA)', r: pct(pr), v: sd });
-        const partRegRate = Math.min(r.reg, 1);
-        rf = sv1 * (partRegRate / 100);
-        lines.push({ n: 'Registration fee (partition)', r: pct(partRegRate), v: rf, note: 'Partition reg: 1% (Reg.Act 1908 — not full conveyance rate)' });
-      }
-      total = sd + rf;
-      setResult({ total, lines, baseValue: sv1, br: pr, reg: r.reg, state: r });
+      if (!val(partval)) { showMsg('Please enter the total property value.', 'partval'); return; }
     } else {
-      if (sk === 'KA') {
-        if (selectedCat === 'gift_prop') {
-          const baseSD = propertyVal * 0.05;
-          const surchargeTotal = baseSD * 0.12;
-          sd = baseSD + surchargeTotal;
-          lines.push({ n: 'Stamp duty — Gift (non-family) KSA: 5%', r: '5%', v: baseSD, note: 'IGR KA Item 8(i)' });
-          lines.push({ n: 'Surcharge & Additional Duty (12% of base SD)', r: '12%', v: surchargeTotal });
-          lines.push({ n: '— If donee is a family member —', r: 'Fixed Concession', v: 0, note: 'BBMP/Corp: ₹5,000 | Municipal/Town: ₹3,000 | Others: ₹1,000 (Reg: ₹1,000)' });
-          let rf = propertyVal * 0.02;
-          lines.push({ n: 'Registration fee (non-family)', r: '2%', v: rf, note: 'Non-family gift registration fee' });
-          total = sd + rf;
-          setResult({ total, lines, baseValue: propertyVal, br: 5, reg: 2, state: r });
-          return;
-        } else {
-          const baseSD = propertyVal * 0.05;
-          const surchargeTotal = baseSD * 0.12;
-          sd = baseSD + surchargeTotal;
-          const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
-          lines.push({ n: 'Stamp duty — ' + instTitle + ' KSA Art.20(1)', r: '5%', v: baseSD, note: 'Source: igr.karnataka.gov.in (Sep 2025)' });
-          lines.push({ n: 'Surcharge & Additional Duty (12% of base SD — BBMP/Corp areas)', r: '12%', v: surchargeTotal, note: 'BBMP: 10% + 2% addl. duty' });
-          let rf = propertyVal * 0.02;
-          lines.push({ n: 'Registration fee (Reg. Act 1908)', r: '2%', v: rf });
-          total = sd + rf;
-          setResult({ total, lines, baseValue: propertyVal, br: 5, reg: 2, state: r });
-          return;
-        }
-      } else {
-        if (r.useSlab) { sd = slabCalc(propertyVal, r.slabs, gkey); br = (sd / propertyVal) * 100; }
-        else { br = r.base[gkey] || r.base.male; sd = propertyVal * (br / 100); }
-        
-        const instTitle = document.querySelector(`option[value="${selectedCat}"]`)?.textContent || selectedCat.replace(/_/g, ' ');
-        lines.push({ n: 'Stamp duty — ' + instTitle + ' (Art.' + (r.art || '23') + ' ISA)', r: pct(br), v: sd });
-        
-        if (r.surcharge) {
-          const sc = sd * (r.surcharge / 100);
-          lines.push({ n: 'Stamp duty surcharge (' + r.surcharge + '%)', r: r.surcharge + '%', v: sc });
-          sd += sc;
-        }
-        if (r.transfer && ptype !== 'agricultural' && (selectedCat === 'sale' || selectedCat === 'exchange')) {
-          const td = propertyVal * (r.transfer / 100);
-          lines.push({ n: 'Transfer duty', r: pct(r.transfer), v: td });
-          sd += td;
-        }
-        if (r.extras) {
-          for (const ex of r.extras) {
-            if (ex.noAgri && ptype === 'agricultural') continue;
-            const ev = propertyVal * (ex.r / 100);
-            lines.push({ n: ex.n, r: pct(ex.r), v: ev });
-            sd += ev;
-          }
-        }
-        
-        let rf;
-        if (selectedCat === 'agreement_sale' || selectedCat === 'development') {
-          rf = 200;
-          lines.push({ n: 'Registration fee (nominal)', r: '₹200 fixed', v: 200 });
-        } else {
-          rf = propertyVal * (r.reg / 100);
-          if (r.regCap && rf > r.regCap) rf = r.regCap;
-          lines.push({ n: 'Registration fee (Reg. Act 1908)', r: pct(r.reg), v: rf, note: r.regCap ? `capped at ${fmt(r.regCap)}` : '' });
-        }
-        total = sd + rf;
-        setResult({ total, lines, baseValue: propertyVal, br: br, reg: r.reg, state: r });
-      }
+      const pvalVal = val(pval), circleVal = val(circle);
+      if (!pvalVal && !['mortgage', 'partition'].includes(selectedCat)) { showMsg('Please enter the property / asset value.', 'pval'); return; }
+    }
+
+    const inputs = {
+      gender,
+      ptype,
+      pval,
+      circle,
+      loan,
+      mortprop,
+      advance,
+      leasePeriodType,
+      leaseMonths,
+      rent,
+      partval,
+      nshares,
+      poaval,
+      shareval,
+      sharefv,
+      debval,
+      pronote,
+      usance,
+      loanamt,
+      autcap,
+      area,
+      partcap,
+      partnew
+    };
+
+    const res = runCalculation(selectedState, selectedCat, inputs);
+    if (res) {
+      setResult(res);
     }
   };
 
@@ -630,14 +281,93 @@ function App() {
 
   return (
     <div className="App">
+      {/* Professional Legal & Finance Background Watermarks */}
+      <div className="pro-bg" aria-hidden="true">
+        {/* Legal scale icon - top left */}
+        <svg className="bg-icon bg-icon-tl" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <line x1="60" y1="15" x2="60" y2="95" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="25" y1="35" x2="95" y2="35" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="25" y1="35" x2="15" y2="58" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="95" y1="35" x2="105" y2="58" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <ellipse cx="20" cy="61" rx="14" ry="5" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <ellipse cx="100" cy="61" rx="14" ry="5" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <line x1="45" y1="95" x2="75" y2="95" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+        </svg>
+        {/* Rupee stamp - top right */}
+        <svg className="bg-icon bg-icon-tr" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="2.5" strokeDasharray="6 3"/>
+          <circle cx="60" cy="60" r="40" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+          <text x="60" y="73" textAnchor="middle" fontSize="38" fontWeight="700" fontFamily="Arial" fill="currentColor">Rs</text>
+        </svg>
+        {/* Document icon - bottom left */}
+        <svg className="bg-icon bg-icon-bl" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="5" width="65" height="85" rx="5" fill="none" stroke="currentColor" strokeWidth="2.5"/>
+          <path d="M65 5 L75 5 L85 15 L75 15 L75 5" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <path d="M75 5 L75 15 L85 15" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <line x1="22" y1="30" x2="63" y2="30" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="22" y1="42" x2="63" y2="42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="22" y1="54" x2="45" y2="54" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <circle cx="57" cy="78" r="12" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <path d="M52 78 L56 82 L64 74" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        {/* Building/Court icon - bottom right */}
+        <svg className="bg-icon bg-icon-br" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="50" width="80" height="55" rx="2" fill="none" stroke="currentColor" strokeWidth="2.5"/>
+          <line x1="10" y1="50" x2="110" y2="50" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+          <polygon points="60,12 15,50 105,50" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"/>
+          <rect x="35" y="70" width="14" height="35" rx="2" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <rect x="55" y="70" width="14" height="35" rx="2" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <rect x="75" y="70" width="14" height="35" rx="2" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <line x1="60" y1="18" x2="60" y2="12" stroke="currentColor" strokeWidth="2"/>
+          <circle cx="60" cy="10" r="3" fill="currentColor"/>
+        </svg>
+        {/* Centre large subtle Rs watermark */}
+        <svg className="bg-icon bg-icon-center" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4"/>
+          <circle cx="100" cy="100" r="75" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
+          <text x="100" y="128" text-anchor="middle" fontSize="80" fontWeight="900" fontFamily="Georgia,serif" fill="currentColor" opacity="0.9">Rs</text>
+        </svg>
+      </div>
+
       {!termsAccepted && <DisclaimerOverlay onAccept={handleAcceptTerms} />}
       <div className={!termsAccepted ? 'blurred' : ''}>
+        <div className="tricolor"></div>
         <header>
           <div className="container">
             <div className="header-inner">
             <div className="logo">
-              <div className="logo-icon">🏛️</div>
-              <div className="logo-text">Stamp<span>Calc</span> India</div>
+              {/* Legal Stamp Seal icon — scales of justice + rupee symbol */}
+              <svg className="lsvg" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FF9933"/>
+                    <stop offset="50%" stopColor="#e07800"/>
+                    <stop offset="100%" stopColor="#FF9933"/>
+                  </linearGradient>
+                  <filter id="gshadow"><feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="rgba(0,0,0,.3)"/></filter>
+                </defs>
+                {/* Hexagonal background */}
+                <polygon points="28,2 52,15 52,41 28,54 4,41 4,15" fill="url(#bg1)" filter="url(#gshadow)"/>
+                {/* Inner white hex outline */}
+                <polygon points="28,7 47,18 47,38 28,49 9,38 9,18" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="1"/>
+                {/* Document icon body */}
+                <rect x="18" y="13" width="20" height="26" rx="2.5" fill="rgba(255,255,255,.95)"/>
+                {/* Document fold corner */}
+                <path d="M33 13 L38 18 L33 18 Z" fill="rgba(255,153,51,.6)"/>
+                <path d="M33 13 L38 18 L33 18" fill="none" stroke="rgba(180,100,0,.4)" strokeWidth=".8"/>
+                {/* Rupee ₹ on document */}
+                <text x="28" y="29" text-anchor="middle" fontFamily="'DM Sans',Georgia,sans-serif" fontSize="10" fontWeight="700" fill="#183078">₹</text>
+                {/* Horizontal lines on doc */}
+                <line x1="21" y1="33" x2="35" y2="33" stroke="#183078" strokeWidth="1.2" strokeLinecap="round" opacity=".35"/>
+                <line x1="21" y1="36" x2="31" y2="36" stroke="#183078" strokeWidth="1.2" strokeLinecap="round" opacity=".25"/>
+                {/* Stamp seal circle */}
+                <circle cx="34" cy="37" r="5.5" fill="#138808" stroke="#fff" strokeWidth="1.2"/>
+                <text x="34" y="40" text-anchor="middle" fontSize="7" fontWeight="700" fill="#fff" fontFamily="sans-serif">✓</text>
+              </svg>
+              <div>
+                <div className="ltxt">Every<span className="s">Stamp</span>Duty<span className="d">.com</span></div>
+                <span className="lsub">India's Complete Stamp Duty Calculator — Every Act · Every State · Every Instrument</span>
+              </div>
             </div>
             <div className="hpills">
               <span className="hpill">ISA 1899 · Finance Act 2019 · Rules 2019</span>
@@ -754,6 +484,10 @@ function App() {
         )}
         {activeSubPage === 'guide' && (
           <DosDontsGuide 
+            selectedState={selectedState}
+            selectedCat={selectedCat}
+            inputs={{ gender, ptype, pval, circle, loan, mortprop, advance, leasePeriodType, leaseMonths, rent, partval, nshares, poaval, shareval, sharefv, debval, pronote, usance, loanamt, autcap, area, partcap, partnew }}
+            result={result}
             onClose={() => setActiveSubPage(null)} 
           />
         )}
@@ -1272,10 +1006,12 @@ function App() {
 
       <footer>
         <div className="container">
-          <p>StampCalc India · Indian Stamp Act 1899 · Finance Act 2019 · SEBI/Depository Rules 2019 · Registration Act 1908 · State Stamp Acts · FY 2026 - 27</p>
-          <p className="red-text">Not legal advice — consult a qualified professional · Penalty for under-stamping: up to 10× deficit (Sec.35, ISA 1899)</p>
+          <p><strong>EveryStampDuty.com</strong> — Every Act. Every State. Every Instrument.</p>
+          <p style={{ marginTop: '3px' }}>Indian Stamp Act 1899 · Finance Act 2026 · SEBI Rules 2019 · Registration Act 1908 · All State Stamp Acts · FY 2026–27</p>
+          <p style={{ marginTop: '3px', color: 'rgba(255,120,100,.9)' }}>Not Legal Advice — Consult a qualified professional before executing any instrument</p>
         </div>
       </footer>
+      <div className="tfoot"></div>
       </div>
 
       {showPdfModal && (

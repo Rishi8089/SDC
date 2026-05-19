@@ -1,3 +1,5 @@
+/* ── Deed Drafting Panel - Light Premium Theme ── */
+
 .draft-grid {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -6,9 +8,11 @@
 }
 
 .control-card {
-  background: rgba(26, 35, 64, 0.35) !important;
-  border: 1px solid var(--bdr) !important;
+  background: var(--sfc) !important;
+  border: 1.5px solid var(--bdr) !important;
   padding: 20px;
+  border-radius: var(--r);
+  box-shadow: var(--sh);
 }
 
 .template-selector-list {
@@ -19,20 +23,20 @@
 }
 
 .template-selector-btn {
-  background: rgba(10, 15, 30, 0.4);
-  border: 1px solid var(--bdr);
+  background: var(--sfc2);
+  border: 1.5px solid var(--bdr);
   border-radius: var(--rsm);
   padding: 12px 16px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.22s ease;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .template-selector-btn:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(24, 48, 120, 0.05);
   border-color: var(--bdr2);
 }
 
@@ -43,7 +47,7 @@
 
 .template-selector-btn strong {
   font-size: 13px;
-  color: #fff;
+  color: var(--nv);
 }
 
 .template-selector-btn.active strong {
@@ -52,11 +56,11 @@
 
 .template-selector-btn span {
   font-size: 11px;
-  color: var(--tx3);
+  color: var(--tx2);
 }
 
 .draft-actions-wrap {
-  border-top: 1px solid var(--bdr);
+  border-top: 1.5px solid var(--bdr);
   padding-top: 16px;
 }
 
@@ -70,7 +74,7 @@
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.22s ease;
   box-shadow: 0 4px 12px rgba(255, 153, 51, 0.25);
 }
 
@@ -89,9 +93,11 @@
 
 /* Preview Card */
 .preview-card {
-  background: rgba(26, 35, 64, 0.25) !important;
-  border: 1px solid var(--bdr) !important;
+  background: var(--sfc) !important;
+  border: 1.5px solid var(--bdr) !important;
   padding: 20px;
+  border-radius: var(--r);
+  box-shadow: var(--sh);
 }
 
 .legal-paper-canvas {
