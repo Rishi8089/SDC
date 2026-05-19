@@ -68,6 +68,7 @@ const PROVIDERS = {
 
 function App() {
   const [mode, setMode] = useState('calc'); // 'calc' or 'ai'
+  const [activeMainPage, setActiveMainPage] = useState('home'); // 'home', 'about', or 'contact'
   const [selectedState, setSelectedState] = useState('');
   const [selectedCat, setSelectedCat] = useState('');
   const [gender, setGender] = useState('male');
@@ -335,7 +336,7 @@ function App() {
         <header>
           <div className="container">
             <div className="header-inner">
-            <div className="logo">
+            <div className="logo" style={{ cursor: 'pointer' }} onClick={() => { setActiveMainPage('home'); setActiveSubPage(null); }}>
               {/* Legal Stamp Seal icon — scales of justice + rupee symbol */}
               <svg className="lsvg" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -369,6 +370,13 @@ function App() {
                 <span className="lsub">India's Complete Stamp Duty Calculator — Every Act · Every State · Every Instrument</span>
               </div>
             </div>
+            
+            <div className="header-nav">
+              <button className={`nav-btn ${activeMainPage === 'home' ? 'active' : ''}`} onClick={() => { setActiveMainPage('home'); setActiveSubPage(null); }}>Calculator</button>
+              <button className={`nav-btn ${activeMainPage === 'about' ? 'active' : ''}`} onClick={() => { setActiveMainPage('about'); setActiveSubPage(null); }}>About Us</button>
+              <button className={`nav-btn ${activeMainPage === 'contact' ? 'active' : ''}`} onClick={() => { setActiveMainPage('contact'); setActiveSubPage(null); }}>Contact Us</button>
+            </div>
+
             <div className="hpills">
               <span className="hpill">ISA 1899 · Finance Act 2019 · Rules 2019</span>
               <span className="hpill">Registration Act 1908</span>
@@ -416,7 +424,9 @@ function App() {
       </header>
 
       <main className="container">
-        <div className="hero">
+        {activeMainPage === 'home' && (
+          <>
+            <div className="hero">
           <div className="hero-eyebrow">India's most comprehensive</div>
           <h1>Stamp Duty Calculator<br /><em>Every Instrument. Every Act. Every State.</em></h1>
           <p className="hero-sub">Covering Indian Stamp Act 1899 · Finance Act 2019 · SEBI/Depository Rules 2019 · SCRA 1956 · State Stamp Acts · Registration Act 1908 — with AI-powered document analysis.</p>
@@ -996,11 +1006,194 @@ function App() {
               </>
             )}
 
-            <div className="disclaimer-box">
+            <div className="disclaimer-box" style={{ marginTop: '16px' }}>
               <strong>⚠ Disclaimer (FY 2026–27):</strong> These are estimated computations based on laws, rules and notifications current as of April 2026. Actual stamp duty may vary based on circle rates, local surcharges, state budget amendments, and the specific facts of the transaction. This tool does not constitute legal advice. Always consult a qualified advocate, chartered accountant, or your state's Sub-Registrar before execution of any instrument. Penalties for under-stamping under Section 35 of ISA 1899 can be up to 10× the deficient duty.
             </div>
           </div>
         </div>
+        )}
+      </>
+    )}
+
+        {activeMainPage === 'about' && (
+          <div className="subpage-container" style={{ marginTop: '20px' }}>
+            <div className="subpage-header">
+              <div className="sh-title">
+                <span className="sh-icon">🏛️</span>
+                <div>
+                  <h1 style={{ margin: 0 }}>About EveryStampDuty.com</h1>
+                  <p style={{ margin: 0 }}>Pioneering Indian Legal-Tech Accessibility & Computational High-Precision</p>
+                </div>
+              </div>
+              <button className="subpage-close" onClick={() => { setActiveMainPage('home'); setActiveSubPage(null); }}>
+                ← Back to Calculator
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div className="card" style={{ marginBottom: '24px' }}>
+                <div className="card-title">Our Mission</div>
+                <p style={{ fontSize: '15px', color: 'var(--tx2)', lineHeight: '1.8', marginBottom: '20px' }}>
+                  EveryStampDuty.com was founded with a singular, resolute objective: <strong>to democratize and untangle the highly fragmented statutory stamp duty schedules across India</strong>. Operating under a dynamic federation of central, state, and union territory laws, calculating the exact stamp duty and registration fees has historically been a source of legal risk, financial penalties, and sub-registrar delays. 
+                </p>
+                <p style={{ fontSize: '15px', color: 'var(--tx2)', lineHeight: '1.8' }}>
+                  By mapping over 94 distinct instrument categories to all 36 Indian states and UTs, and combining standard computations with real-time AI-powered semantic clause extraction, we provide individuals, advocates, chartered accountants, and institutions with an <strong>audit-ready, highly compliant estimations pipeline</strong>.
+                </p>
+              </div>
+
+              <div className="matrix-meta-grid" style={{ marginBottom: '24px' }}>
+                <div className="mm-item purple-glow">
+                  <span className="mm-lbl">Statutory Scope</span>
+                  <span className="mm-val">36 States & UTs</span>
+                  <span className="mm-sub">Fully updated for FY 2026–27</span>
+                </div>
+                <div className="mm-item green-glow">
+                  <span className="mm-lbl">Instrument Coverage</span>
+                  <span className="mm-val">94+ Categories</span>
+                  <span className="mm-sub">Leases, Sales, Trusts & Derivatives</span>
+                </div>
+                <div className="mm-item red-glow">
+                  <span className="mm-lbl">Privacy Compliance</span>
+                  <span className="mm-val">100% Client-Side</span>
+                  <span className="mm-sub">Zero data or documents stored</span>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-title">Our Technical Framework</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '16px' }}>
+                  <div className="vr-item">
+                    <div className="vr-num">01</div>
+                    <h3 style={{ color: 'var(--nv)', fontWeight: '600', marginBottom: '8px' }}>High-Precision Slab Engines</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--tx2)', lineHeight: '1.6' }}>
+                      Our custom calcEngine computes complex percentage structures, ceiling caps (e.g., Maharashtra registration fee caps at ₹30,000), minimum thresholds, and area-specific surcharges natively in your session.
+                    </p>
+                  </div>
+                  <div className="vr-item">
+                    <div className="vr-num">02</div>
+                    <h3 style={{ color: 'var(--nv)', fontWeight: '600', marginBottom: '8px' }}>AI Semantic Layer</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--tx2)', lineHeight: '1.6' }}>
+                      Integrates with Claude, Gemini, ChatGPT, and Azure to read draft deeds directly, automatically parsing core transaction attributes to predict execution rates.
+                    </p>
+                  </div>
+                  <div className="vr-item">
+                    <div className="vr-num">03</div>
+                    <h3 style={{ color: 'var(--nv)', fontWeight: '600', marginBottom: '8px' }}>Audit Transparency</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--tx2)', lineHeight: '1.6' }}>
+                      Every calculation outputs verified legal sources, specific legislative articles, regulatory authorities, and direct state portal references so users can double-check estimates.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeMainPage === 'contact' && (
+          <div className="subpage-container" style={{ marginTop: '20px' }}>
+            <div className="subpage-header">
+              <div className="sh-title">
+                <span className="sh-icon">✉️</span>
+                <div>
+                  <h1 style={{ margin: 0 }}>Contact EveryStampDuty.com</h1>
+                  <p style={{ margin: 0 }}>Connect with our Statutory Computations Liaison & Enterprise Integration Team</p>
+                </div>
+              </div>
+              <button className="subpage-close" onClick={() => { setActiveMainPage('home'); setActiveSubPage(null); }}>
+                ← Back to Calculator
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div className="contact-grid">
+                <div className="contact-info-card">
+                  <div className="card-title">Liaison Office</div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px', fontSize: '13.5px', color: 'var(--tx2)', lineHeight: '1.7' }}>
+                    <div>
+                      <strong>🏢 Legal-Tech Headquarters:</strong>
+                      <p style={{ marginTop: '4px', fontSize: '13px' }}>
+                        Janakshi Layout , Rajrajeshwari nagar 5th stage<br />
+                        Main road, Bangalore,<br />
+                        Karnataka — 560098
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <strong>✉️ General Inquiries:</strong>
+                      <p style={{ marginTop: '2px' }}><a href="mailto:everystampduty@gmail.com" style={{ color: 'var(--pu)', textDecoration: 'none', fontWeight: '600' }}>everystampduty@gmail.com</a></p>
+                    </div>
+
+                    <div>
+                      <strong>📱 Telephone Helpdesk:</strong>
+                      <p style={{ marginTop: '2px', fontWeight: '600', color: 'var(--tx)' }}>+91 7338673370</p>
+                      <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>Mon–Fri, 9:30 AM – 6:30 PM IST</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="contact-form-card">
+                  <div className="card-title">Statutory Inquiry Form</div>
+                  
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    showToast("Inquiry submitted successfully! A liaison officer will review your statutory query shortly.", "success");
+                    e.target.reset();
+                  }} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                    
+                    <div className="contact-form-row">
+                      <div className="pdf-party-field">
+                        <label>Full Name</label>
+                        <input type="text" placeholder="e.g. Adv. Rajesh Kumar" required />
+                      </div>
+                      <div className="pdf-party-field">
+                        <label>Email Address</label>
+                        <input type="email" placeholder="e.g. rajesh@legalcorp.in" required />
+                      </div>
+                    </div>
+
+                    <div className="contact-form-row">
+                      <div className="pdf-party-field">
+                        <label>State / Union Territory</label>
+                        <select required defaultValue="">
+                          <option value="" disabled>— Select State —</option>
+                          {Object.entries(STATES).map(([code, s]) => <option key={code} value={code}>{s.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="pdf-party-field">
+                        <label>Inquiry Nature</label>
+                        <select required defaultValue="general">
+                          <option value="general">General Support / feedback</option>
+                          <option value="slab">Slab rate amendment correction</option>
+                          <option value="api">Enterprise API access integration</option>
+                          <option value="legal">Legal team inquiry</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pdf-party-field">
+                      <label>Your Query / Message</label>
+                      <textarea style={{ 
+                        width: '100%', 
+                        minHeight: '110px', 
+                        padding: '10px 12px', 
+                        borderRadius: 'var(--rsm)', 
+                        border: '1.5px solid var(--bdr)', 
+                        background: 'var(--sfc2)', 
+                        fontSize: '13px', 
+                        fontFamily: 'inherit',
+                        color: 'var(--tx)' 
+                      }} placeholder="Please enter your specific question, state act queries, or API requirements..." required></textarea>
+                    </div>
+
+                    <button type="submit" className="pdf-report-trigger-btn" style={{ margin: '6px 0 0', width: '100%', border: '1.5px solid var(--sf)' }}>
+                      ✓ Submit Statutory Inquiry
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </main>
 
@@ -1008,7 +1201,12 @@ function App() {
         <div className="container">
           <p><strong>EveryStampDuty.com</strong> — Every Act. Every State. Every Instrument.</p>
           <p style={{ marginTop: '3px' }}>Indian Stamp Act 1899 · Finance Act 2026 · SEBI Rules 2019 · Registration Act 1908 · All State Stamp Acts · FY 2026–27</p>
-          <p style={{ marginTop: '3px', color: 'rgba(255,120,100,.9)' }}>Not Legal Advice — Consult a qualified professional before executing any instrument</p>
+          <p style={{ marginTop: '4px', display: 'flex', justifyContent: 'center', gap: '15px' }}>
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setActiveMainPage('home'); setActiveSubPage(null); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Calculator</span>
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setActiveMainPage('about'); setActiveSubPage(null); window.scrollTo({top: 0, behavior: 'smooth'}); }}>About Us</span>
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setActiveMainPage('contact'); setActiveSubPage(null); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Contact Us</span>
+          </p>
+          <p style={{ marginTop: '4px', color: 'rgba(255,120,100,.9)', fontSize: '11px' }}>Not Legal Advice — Consult a qualified professional before executing any instrument</p>
         </div>
       </footer>
       <div className="tfoot"></div>
